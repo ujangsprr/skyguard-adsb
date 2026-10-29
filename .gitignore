@@ -2,6 +2,10 @@
 credentials.json
 **/credentials.json
 
+# Local Extra Packages
+api_package/
+opensky_military_api/
+
 # Raw aircraft database archive (pre-processed DBs in json.gz are tracked)
 data/aircraft.csv.gz
 **/aircraft.csv.gz
