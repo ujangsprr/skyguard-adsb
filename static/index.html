@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyGuard — Flight Tracker (ADS-B)</title>
+  <meta name="description"
+    content="Professional real-time military & commercial flight tracking system powered by OpenSky Network API and verified aircraft databases.">
+
+  <!-- Modern Clean Aviation Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- SkyGuard Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-header" role="banner">
+    <div class="header-left-group">
+      <div class="logo-group">
+        <div class="radar-logo-icon" id="radarLogo">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
+          </svg>
+        </div>
+        <div class="title-area">
+          <h1>SKYGUARD <span class="tag-mil" id="headerModeTag">MILITARY ADS-B</span></h1>
+          <p>OPENSKY NETWORK RADAR</p>
+        </div>
+      </div>
+
+      <!-- Flight Mode Selector -->
+      <div class="flight-mode-selector" id="flightModeSelector" title="Select which flights to display">
+        <button class="mode-btn" data-mode="all" id="modeBtnAll">ALL</button>
+        <button class="mode-btn active" data-mode="military" id="modeBtnMilitary">MILITARY</button>
+        <button class="mode-btn" data-mode="commercial" id="modeBtnCommercial">COMMERCIAL</button>
+      </div>
+    </div>
+
+    <!-- Right-aligned Single-Line Toolbar -->
+    <div class="header-status-group">
+
+      <!-- Polling ON / OFF Toggle -->
+      <div class="polling-toggle-group" title="Toggle automatic data fetching (Turn OFF to save OpenSky API credits)">
+        <span class="polling-label">Auto:</span>
+        <label class="toggle-switch-container">
+          <input type="checkbox" id="pollingToggle" class="switch-input" checked>
+          <span class="switch-slider"></span>
+          <span class="switch-status-text on" id="pollingStatusText">ON</span>
+        </label>
+      </div>
+
+      <!-- Connection Status Badge -->
+      <div class="status-pill" id="apiStatusPill" title="OpenSky API Status">
+        <div class="live-pulse" id="livePulseDot"></div>
+        <span id="apiStatusText">CONNECTING...</span>
+      </div>
+
+      <!-- Countdown -->
+      <div class="countdown-box" id="countdownBox" title="Next scheduled scan">
+        <span class="countdown-num" id="countdownVal">15s</span>
+      </div>
+
+      <!-- Clean Horizontal Action Toolbar -->
+      <div class="refresh-control">
+        <button class="btn-header" id="btnManualRefresh" title="Fetch once on-demand">
+          Scan
+        </button>
+
+        <button class="btn-header fir-btn-active" id="btnToggleFir" title="Toggle Indonesian FIR Airspace Boundaries">
+          <span id="firStatusText">FIR: ON</span>
+        </button>
+
+        <button class="btn-header" id="btnAudioToggle" title="Toggle Telemetry Audio">
+          <span id="audioStatusText">Audio</span>
+        </button>
+
+        <button class="btn-header" id="btnOpenTable" title="Open Flight Data Matrix Table">
+          Table
+        </button>
+
+        <a href="/docs.html" target="_blank" class="btn-header"
+          style="text-decoration:none; display:inline-flex; align-items:center; color:var(--text-main);"
+          title="Open REST API Documentation">
+          API
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Telemetry Overview Stats Bar -->
+  <section class="stats-strip" aria-label="Flight Overview Statistics">
+    <div class="stat-item">
+      <div class="stat-content">
+        <span class="stat-label">Airborne</span>
+        <span class="stat-val cyan" id="statAirborne">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider"></div>
+
+    <!-- FIR Indonesia Counter (Clickable) -->
+    <div class="stat-item clickable" id="statFirIndoItem" title="Click to filter flights inside FIR Indonesia">
+      <div class="stat-content">
+        <span class="stat-label">In FIR Indonesia</span>
+        <span class="stat-val orange" id="statFirIndo">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider"></div>
+
+    <!-- Military Stats -->
+    <div class="stat-item mil-stat-group" id="milStatGroup">
+      <div class="stat-content">
+        <span class="stat-label">Military</span>
+        <span class="stat-val rose" id="statMilitary">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider mil-stat-group" id="milDivider1"></div>
+
+    <div class="stat-item mil-stat-group">
+      <div class="stat-content">
+        <span class="stat-label">Fighters</span>
+        <span class="stat-val rose" id="statFighters">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider mil-stat-group"></div>
+
+    <div class="stat-item mil-stat-group">
+      <div class="stat-content">
+        <span class="stat-label">Cargo / Tanker</span>
+        <span class="stat-val amber" id="statCargo">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider mil-stat-group"></div>
+
+    <div class="stat-item mil-stat-group">
+      <div class="stat-content">
+        <span class="stat-label">Helos</span>
+        <span class="stat-val purple" id="statHelos">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider mil-stat-group"></div>
+
+    <div class="stat-item mil-stat-group">
+      <div class="stat-content">
+        <span class="stat-label">Recon</span>
+        <span class="stat-val cyan" id="statRecon">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider"></div>
+
+    <!-- Commercial Stats -->
+    <div class="stat-item com-stat-group" id="comStatGroup">
+      <div class="stat-content">
+        <span class="stat-label">Commercial</span>
+        <span class="stat-val" style="color:#60a5fa" id="statCommercial">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider com-stat-group"></div>
+
+    <div class="stat-item com-stat-group">
+      <div class="stat-content">
+        <span class="stat-label">Airlines</span>
+        <span class="stat-val" style="color:#60a5fa" id="statAirlines">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider com-stat-group"></div>
+
+    <div class="stat-item com-stat-group">
+      <div class="stat-content">
+        <span class="stat-label">Cargo Com.</span>
+        <span class="stat-val amber" id="statCargoCom">0</span>
+      </div>
+    </div>
+
+    <div class="stat-divider"></div>
+
+    <div class="stat-item">
+      <div class="stat-content">
+        <span class="stat-label">Nations</span>
+        <span class="stat-val green" id="statNations">0</span>
+      </div>
+    </div>
+
+    <!-- Emergency & Detections Alert Banner (Interactive) -->
+    <div class="emergency-alert-banner" id="emergencyBanner" style="display:none;"
+      title="Click to track alert aircraft">
+      <span class="alert-icon-pulse">🚨</span>
+      <div class="alert-text-wrapper">
+        <strong id="emergencyBannerText">EMERGENCY SQUAWK</strong>
+        <span id="emergencyBannerSub" class="alert-subtext">CLICK TO TRACK</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Viewport -->
+  <main class="main-viewport" role="main">
+
+    <!-- Map Canvas -->
+    <div id="radarMap" role="region" aria-label="Interactive Military Flight Map"></div>
+
+    <!-- Quick Region Jump Controls on Map -->
+    <nav class="map-quick-nav" aria-label="Region Navigation">
+      <button class="nav-pill-btn" data-region="global">GLOBAL</button>
+      <button class="nav-pill-btn fir-nav active" data-region="fir_indonesia">INDONESIA</button>
+      <button class="nav-pill-btn" data-region="se_asia">SE ASIA</button>
+      <button class="nav-pill-btn" data-region="europe">EUROPE</button>
+      <button class="nav-pill-btn" data-region="middle_east">MIDDLE EAST</button>
+      <button class="nav-pill-btn" data-region="north_america">NORTH AMERICA</button>
+      <button class="nav-pill-btn" data-region="asia_pacific">ASIA-PACIFIC</button>
+    </nav>
+
+    <!-- Basemap Switcher (Dark Aviation vs Satellite vs Standard) -->
+    <div class="map-basemap-ctrl" aria-label="Basemap Style">
+      <button class="basemap-btn active" data-basemap="dark">Dark</button>
+      <button class="basemap-btn" data-basemap="satellite">Satellite</button>
+      <button class="basemap-btn" data-basemap="osm">Street</button>
+    </div>
+
+    <!-- Altitude Color Scale Legend -->
+    <aside class="altitude-legend" aria-label="Altitude Color Legend">
+      <div class="altitude-legend-title">Altitude</div>
+      <div class="altitude-bars">
+        <div class="alt-scale-row"><span class="alt-dot" style="background:#ec4899"></span> >35,000 ft</div>
+        <div class="alt-scale-row"><span class="alt-dot" style="background:#f59e0b"></span> 25k - 35k ft</div>
+        <div class="alt-scale-row"><span class="alt-dot" style="background:#3b82f6"></span> 15k - 25k ft</div>
+        <div class="alt-scale-row"><span class="alt-dot" style="background:#06b6d4"></span> 5k - 15k ft</div>
+        <div class="alt-scale-row"><span class="alt-dot" style="background:#22c55e"></span> &lt; 5,000 ft</div>
+        <div class="alt-scale-row"><span class="alt-dot" style="background:#9ca3af"></span> Ground</div>
+      </div>
+    </aside>
+
+    <!-- Sidebar HUD -->
+    <aside class="sidebar-hud" id="sidebarHud" role="complementary" aria-label="Aircraft List and Telemetry Panel">
+
+      <!-- Filter and Search Header -->
+      <div class="sidebar-header">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+          </svg>
+          <input type="text" id="searchInput" class="search-input"
+            placeholder="Search Callsign, ICAO, Model, Route, Country..." autocomplete="off">
+        </div>
+
+        <!-- Category Filter Pills: dynamic based on selected mode -->
+        <div class="filter-categories-strip" id="catFilterStrip">
+          <button class="cat-pill active" data-category="all">All (0)</button>
+          <button class="cat-pill fir-filter-pill" data-category="fir_indo">In FIR (0)</button>
+          <button class="cat-pill alert-filter-pill" data-category="detections" id="pillDetections"
+            style="color:#f87171; border-color:rgba(239,68,68,0.5);">🚨 Alerts (0)</button>
+          <!-- Military pills (shown in military/all mode) -->
+          <button class="cat-pill mil-cat-pill" data-category="fighter" title="Fighters &amp; Attack">✈ Fighter</button>
+          <button class="cat-pill mil-cat-pill" data-category="bomber" title="Strategic Bombers">⬟ Bomber</button>
+          <button class="cat-pill mil-cat-pill" data-category="transport" title="Military Transport">▣
+            Transport</button>
+          <button class="cat-pill mil-cat-pill" data-category="tanker" title="Air Refueling Tankers">⛽ Tanker</button>
+          <button class="cat-pill mil-cat-pill" data-category="helicopter" title="Military Helicopters">⊛ Helo</button>
+          <button class="cat-pill mil-cat-pill" data-category="recon" title="Recon / ISR / AWACS">◉ Recon</button>
+          <button class="cat-pill mil-cat-pill" data-category="trainer" title="Trainer Aircraft">◈ Trainer</button>
+          <button class="cat-pill mil-cat-pill" data-category="drone" title="UAV / Drone">◎ UAV</button>
+          <button class="cat-pill mil-cat-pill" data-category="military_general" title="Other Military">⊕ Mil
+            Other</button>
+          <!-- Commercial pills (shown in commercial/all mode) -->
+          <button class="cat-pill com-cat-pill com-heavy" data-category="heavy" style="display:none"
+            title="Widebody: 777/787/A350/A380">▲ Heavy</button>
+          <button class="cat-pill com-cat-pill com-airline" data-category="airline" style="display:none"
+            title="Narrowbody: 737/A320">✈ Airline</button>
+          <button class="cat-pill com-cat-pill com-cargo" data-category="cargo_commercial" style="display:none"
+            title="Freighter / Cargo">▣ Cargo</button>
+          <button class="cat-pill com-cat-pill com-charter" data-category="charter" style="display:none"
+            title="Charter Operators">◆ Charter</button>
+          <button class="cat-pill com-cat-pill com-turboprop" data-category="turboprop" style="display:none"
+            title="ATR / Dash 8 / Caravan">⊗ Turboprop</button>
+          <button class="cat-pill com-cat-pill com-bizjet" data-category="business_jet" style="display:none"
+            title="Gulfstream / Citation / Global">◇ Bizjet</button>
+          <button class="cat-pill com-cat-pill com-light" data-category="light_aircraft" style="display:none"
+            title="Cessna / Piper / Cirrus">· Light GA</button>
+          <button class="cat-pill com-cat-pill com-helo" data-category="helicopter" style="display:none"
+            title="Civil Helicopters">⊛ Helicopter</button>
+          <button class="cat-pill com-cat-pill" data-category="general_aviation" style="display:none"
+            title="Other Private / GA">⊙ Other GA</button>
+        </div>
+
+        <div class="filter-secondary-bar">
+          <select id="countrySelect" class="country-select" title="Filter by Country">
+            <option value="all">All Countries</option>
+          </select>
+
+          <label class="airborne-toggle">
+            <input type="checkbox" id="checkAirborneOnly" checked>
+            Airborne Only
+          </label>
+        </div>
+      </div>
+
+      <!-- Target Flight Card (Shows when an aircraft is selected) -->
+      <section class="target-hud-section" id="targetHudSection" aria-label="Target Aircraft Detail">
+        <div class="target-hud-header">
+          <div>
+            <div class="target-callsign-large">
+              <span id="targetCallsign">RCH842</span>
+              <span class="target-icao" id="targetIcao">#AE01CE</span>
+            </div>
+            <div class="target-model-desc" id="targetDesc">BOEING C-17A Globemaster III</div>
+          </div>
+          <button class="target-close-btn" id="btnCloseTarget" title="Close Details">✕</button>
+        </div>
+
+        <!-- Target Badges Row -->
+        <div class="target-badges-row">
+          <span class="target-operator-badge" id="targetOperator">United States Air Force</span>
+          <span class="target-fir-badge" id="targetFirBadge" style="display: none;">
+            <span id="targetFirName">FIR JAKARTA</span>
+          </span>
+        </div>
+
+        <!-- Aircraft Real Photo Card -->
+        <div class="target-photo-card" id="targetPhotoCard">
+          <div class="target-photo-wrapper">
+            <img id="targetPhotoImg" class="target-photo-img" src="" alt="Aircraft Photo" style="display:none;" />
+            <div id="targetPhotoPlaceholder" class="target-photo-placeholder">
+              <svg viewBox="0 0 24 24" class="photo-placeholder-icon">
+                <path
+                  d="M12 2 L14 7 L21 11 L21 13 L14 13 L14 19 L17 21 L17 22 L12 21 L7 22 L7 21 L10 19 L10 13 L3 13 L3 11 L10 7 Z" />
+              </svg>
+              <span id="targetPhotoStatus">Searching aircraft photo...</span>
+            </div>
+          </div>
+          <div class="target-photo-footer" id="targetPhotoFooter" style="display:none;">
+            <span id="targetPhotographer" class="photo-author">Photo © Planespotters.net</span>
+            <a id="targetPhotoLink" class="photo-link" href="#" target="_blank" rel="noopener">HD View ↗</a>
+          </div>
+        </div>
+
+        <!-- Active Detections & Anomaly Alert Box -->
+        <div class="target-detections-box" id="targetDetectionsBox" style="display: none;">
+          <div class="target-detections-header">
+            <span>⚠️ ACTIVE DETECTIONS & FLIGHT ALERTS</span>
+          </div>
+          <div class="target-detections-list" id="targetDetectionsList"></div>
+        </div>
+
+        <!-- Flight Route Origin & Destination Card -->
+        <div class="target-route-card">
+          <div class="route-endpoint">
+            <div class="route-endpoint-info">
+              <span class="route-endpoint-label">Origin (Asal)</span>
+              <span class="route-endpoint-name" id="targetOrigin">Loading route...</span>
+            </div>
+          </div>
+          <div class="route-line-connector"></div>
+          <div class="route-endpoint">
+            <div class="route-endpoint-info">
+              <span class="route-endpoint-label">Destination (Tujuan)</span>
+              <span class="route-endpoint-name" id="targetDest">Loading destination...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Gauges Grid -->
+        <div class="telemetry-grid">
+          <div class="gauge-card">
+            <div class="gauge-label">Altitude</div>
+            <div class="gauge-val" id="targetAlt">34,000 <span class="gauge-unit">FT</span></div>
+          </div>
+          <div class="gauge-card">
+            <div class="gauge-label">Speed</div>
+            <div class="gauge-val" id="targetSpeed">462 <span class="gauge-unit">KTS</span></div>
+          </div>
+          <div class="gauge-card">
+            <div class="gauge-label">Heading</div>
+            <div class="gauge-val" id="targetHeading">284° <span class="gauge-unit">MAG</span></div>
+          </div>
+          <div class="gauge-card">
+            <div class="gauge-label">Climb Rate</div>
+            <div class="gauge-val" id="targetVertRate">+150 <span class="gauge-unit">FPM</span></div>
+          </div>
+          <div class="gauge-card">
+            <div class="gauge-label">Squawk</div>
+            <div class="gauge-val" id="targetSquawk">4211</div>
+          </div>
+          <div class="gauge-card">
+            <div class="gauge-label">Nation</div>
+            <div class="gauge-val" id="targetCountry" style="font-size: 0.8rem;">USA</div>
+          </div>
+        </div>
+
+        <div class="target-actions-bar">
+          <button class="btn-action" id="btnFocusTarget">Center on Map</button>
+          <button class="btn-action" id="btnCopyTelemetry">Copy Telemetry</button>
+        </div>
+      </section>
+
+      <!-- Live Military Flights List -->
+      <div class="flights-list-section" id="flightsListContainer">
+        <!-- Rendered dynamically -->
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Telemetry Data Grid Drawer (Bottom Modal) -->
+  <section class="telemetry-drawer" id="telemetryDrawer" aria-label="Full Flight Telemetry Grid">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <span id="drawerTitle">FLIGHT TELEMETRY DATA MATRIX</span>
+      </div>
+      <div class="drawer-actions">
+        <button class="btn-header" id="btnExportCsv">Export CSV</button>
+        <button class="btn-header" id="btnExportJson">Export JSON</button>
+        <button class="btn-header" id="btnCloseDrawer">✕ Close</button>
+      </div>
+    </div>
+    <div class="drawer-table-wrap">
+      <table class="telemetry-table" id="telemetryTable">
+        <thead>
+          <tr>
+            <th>Callsign</th>
+            <th>ICAO Hex</th>
+            <th>Type</th>
+            <th>Aircraft Model</th>
+            <th>Origin</th>
+            <th>Destination</th>
+            <th>Airspace</th>
+            <th>Operator / Force</th>
+            <th>Country</th>
+            <th>Altitude</th>
+            <th>Speed</th>
+            <th>Heading</th>
+            <th>Squawk</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="telemetryTableBody">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Leaflet Library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- SkyGuard Core Logic -->
+  <script src="js/icons.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

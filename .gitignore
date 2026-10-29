@@ -1,0 +1,32 @@
+# Secrets & Authentication
+credentials.json
+**/credentials.json
+
+# Raw aircraft database archive (pre-processed DBs in json.gz are tracked)
+data/aircraft.csv.gz
+**/aircraft.csv.gz
+
+# macOS System & Resource Fork Files
+.DS_Store
+._*
+**/._*
+.AppleDouble
+.LSOverride
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Scratch & Logs
+*.log
+.system_generated/

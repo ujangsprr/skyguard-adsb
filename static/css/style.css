@@ -1,0 +1,1535 @@
+/* ==========================================================================
+   SkyGuard Sentinel — Professional Aviation ADS-B Tracker
+   Clean, Modern Aviation Operations Interface (Flightradar24 / ADS-B Exchange style)
+   ========================================================================== */
+
+:root {
+  /* Professional Dark Aviation Palette */
+  --bg-primary: #0f1319;
+  --bg-secondary: #161b22;
+  --bg-card: #1c212b;
+  --bg-card-hover: #232a36;
+  --bg-card-active: #2b3342;
+  
+  --border-subtle: #2d3342;
+  --border-focus: #38bdf8;
+  
+  --accent-cyan: #38bdf8;
+  --accent-blue: #60a5fa;
+  --accent-green: #22c55e;
+  --accent-amber: #f59e0b;
+  --accent-orange: #f97316;
+  --accent-rose: #ef4444;
+  --accent-purple: #c084fc;
+
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+  --text-highlight: #38bdf8;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
+
+  --header-height: 56px;
+  --stats-bar-height: 42px;
+  --sidebar-width: 420px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ================= Top Navigation Bar ================= */
+.top-header {
+  height: var(--header-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 1000;
+  position: relative;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.logo-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.radar-logo-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e2634;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.radar-logo-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--accent-cyan);
+}
+
+.title-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.title-area h1 {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-area .tag-mil {
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.62rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: inline-block;
+  min-width: 104px;
+  text-align: center;
+  transition: background-color 0.2s ease;
+}
+
+.title-area p {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* Right Toolbar: Strictly 1 line, no stacking */
+.header-status-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Polling Toggle Switch */
+.polling-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.polling-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.toggle-switch-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.switch-input {
+  display: none;
+}
+
+.switch-slider {
+  width: 32px;
+  height: 18px;
+  background: #374151;
+  border-radius: 12px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.switch-slider::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  background: #d1d5db;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.switch-input:checked + .switch-slider {
+  background: #166534;
+}
+
+.switch-input:checked + .switch-slider::before {
+  transform: translateX(14px);
+  background: var(--accent-green);
+}
+
+.switch-status-text {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.switch-status-text.on { color: var(--accent-green); }
+.switch-status-text.off { color: var(--text-dim); }
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--accent-green);
+}
+
+.live-pulse {
+  width: 7px;
+  height: 7px;
+  background-color: var(--accent-green);
+  border-radius: 50%;
+}
+
+.live-pulse.paused {
+  background-color: var(--accent-amber);
+}
+
+/* Header Action Buttons */
+.refresh-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.countdown-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  padding: 0 4px;
+  min-width: 34px;
+}
+
+.countdown-num {
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.btn-header {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-family: var(--font-sans);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  height: 30px;
+}
+
+.btn-header:hover {
+  background: var(--bg-card-hover);
+  border-color: #4b5563;
+  color: #fff;
+}
+
+.btn-header.active {
+  background: #1e3a5f;
+  border-color: var(--accent-cyan);
+  color: #fff;
+}
+
+.btn-header.fir-btn-active {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: var(--accent-orange);
+  color: #fdba74;
+}
+
+/* ================= Telemetry Top Stats Bar ================= */
+.stats-strip {
+  height: var(--stats-bar-height);
+  background: #12161f;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 18px;
+  overflow-x: auto;
+  z-index: 999;
+  flex-shrink: 0;
+}
+
+.stats-strip::-webkit-scrollbar {
+  height: 0px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.stat-item.clickable {
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.stat-item.clickable:hover {
+  background: #1e2533;
+}
+
+.stat-icon {
+  font-size: 0.9rem;
+}
+
+.stat-content {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.stat-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stat-val.cyan { color: var(--accent-cyan); }
+.stat-val.green { color: var(--accent-green); }
+.stat-val.amber { color: var(--accent-amber); }
+.stat-val.rose { color: var(--accent-rose); }
+.stat-val.purple { color: var(--accent-purple); }
+.stat-val.orange { color: var(--accent-orange); }
+
+.stat-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-subtle);
+}
+
+.emergency-alert-banner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(220, 38, 38, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #fecaca;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  cursor: pointer;
+  animation: alertPulseGlow 2s infinite ease-in-out;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.emergency-alert-banner:hover {
+  background: rgba(220, 38, 38, 0.4);
+  border-color: #ef4444;
+  transform: translateY(-1px);
+}
+
+.alert-icon-pulse {
+  display: inline-block;
+  animation: alertIconShake 1.2s infinite ease-in-out;
+}
+
+.alert-text-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alert-subtext {
+  font-size: 0.6rem;
+  color: #fca5a5;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  letter-spacing: 0.5px;
+}
+
+@keyframes alertPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.7);
+    border-color: #ef4444;
+  }
+}
+
+@keyframes alertIconShake {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* ================= Main App Container ================= */
+.main-viewport {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ================= Map View ================= */
+#radarMap {
+  flex: 1;
+  height: 100%;
+  background: #0f1319;
+  z-index: 1;
+}
+
+/* Clean Leaflet Styling */
+.leaflet-container {
+  background: #0f1319 !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Completely remove browser focus outline boxes on interactive SVG paths! */
+path.leaflet-interactive:focus,
+path.leaflet-interactive:focus-visible,
+svg:focus,
+.leaflet-container :focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+  background: var(--bg-card) !important;
+}
+
+.leaflet-control-zoom a {
+  background: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--bg-card-hover) !important;
+  color: #fff !important;
+}
+
+/* Map Quick Nav Controls */
+.map-quick-nav {
+  position: absolute;
+  top: 14px;
+  left: 54px;
+  z-index: 500;
+  display: flex;
+  gap: 4px;
+  background: rgba(22, 27, 34, 0.95);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.nav-pill-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nav-pill-btn:hover, .nav-pill-btn.active {
+  background: #2b3342;
+  color: #fff;
+}
+
+.nav-pill-btn.fir-nav {
+  color: #fdba74;
+}
+
+.nav-pill-btn.fir-nav:hover, .nav-pill-btn.fir-nav.active {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fff;
+}
+
+/* Map Basemap Switcher Controls */
+.map-basemap-ctrl {
+  position: absolute;
+  top: 14px;
+  right: 434px;
+  z-index: 500;
+  display: flex;
+  background: rgba(22, 27, 34, 0.95);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.basemap-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.basemap-btn.active {
+  background: #2b3342;
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+/* FIR Airspace Label on Map */
+.fir-chart-label {
+  background: rgba(15, 19, 25, 0.85) !important;
+  border: 1px solid #f97316 !important;
+  color: #fdba74 !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+}
+
+.altitude-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 500;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.altitude-legend-title {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.altitude-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.alt-scale-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* ================= Sidebar HUD ================= */
+.sidebar-hud {
+  width: var(--sidebar-width);
+  height: 100%;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  z-index: 900;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  width: 14px;
+  height: 14px;
+  fill: var(--text-dim);
+}
+
+.search-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 7px 10px 7px 32px;
+  color: #fff;
+  font-size: 0.78rem;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--border-focus);
+}
+
+.filter-categories-strip {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.filter-categories-strip::-webkit-scrollbar {
+  height: 0px;
+}
+
+.cat-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cat-pill:hover {
+  background: var(--bg-card-hover);
+  color: #fff;
+}
+
+.cat-pill.active {
+  background: #222d3d;
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.cat-pill.fir-filter-pill {
+  border-color: rgba(249, 115, 22, 0.4);
+  color: #fdba74;
+}
+
+.cat-pill.fir-filter-pill.active {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: var(--accent-orange);
+  color: #fff;
+}
+
+.filter-secondary-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.country-select {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 5px 8px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.country-select option {
+  background: #11141a;
+  color: #fff;
+}
+
+.airborne-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ================= Selected Flight Card (HUD) ================= */
+.target-hud-section {
+  display: none;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: #191f2b;
+}
+
+.target-hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.target-callsign-large {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.target-icao {
+  font-size: 0.72rem;
+  color: var(--accent-cyan);
+}
+
+.target-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 4px;
+}
+
+.target-close-btn:hover {
+  color: #fff;
+}
+
+.target-model-desc {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d1d5db;
+  margin-bottom: 6px;
+}
+
+.target-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.target-operator-badge {
+  background: #252e3d;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-cyan);
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.target-fir-badge {
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  color: #fdba74;
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Route Origin & Destination Card in HUD */
+.target-route-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.route-endpoint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.route-endpoint-icon {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.route-endpoint-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.route-endpoint-label {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.route-endpoint-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.route-line-connector {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0 2px;
+}
+
+/* Telemetry Gauges Grid */
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.gauge-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.gauge-label {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.gauge-val {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.gauge-unit {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  font-weight: normal;
+}
+
+.target-actions-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-action {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-action:hover {
+  background: var(--bg-card-hover);
+  color: #fff;
+  border-color: #4b5563;
+}
+
+/* ================= Flight Cards List ================= */
+.flights-list-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flights-list-section::-webkit-scrollbar {
+  width: 5px;
+}
+
+.flights-list-section::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 2px;
+}
+
+.flight-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flight-card:hover {
+  background: var(--bg-card-hover);
+  border-color: #4b5563;
+}
+
+.flight-card.active {
+  background: #202836;
+  border-color: var(--accent-cyan);
+}
+
+.flight-card.in-fir-indo {
+  border-left: 3px solid var(--accent-orange);
+}
+
+.flight-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-callsign {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-country-flag {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.card-model-row {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.card-route-row {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+}
+
+.card-route-row span {
+  color: #d1d5db;
+}
+
+.card-telemetry-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.telemetry-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.telemetry-item span {
+  color: #fff;
+}
+
+.flight-card.is-emergency {
+  border-color: var(--accent-rose);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ================= Marker Elements in Leaflet ================= */
+.custom-radar-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.radar-marker-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.radar-plane-svg {
+  transition: transform 0.2s linear;
+}
+
+/* Callsign label badge — hidden by default, shown ONLY on hover or when selected */
+.marker-callsign-badge {
+  position: absolute;
+  top: -19px;
+  left: 50%;
+  transform: translate(-50%, 3px);
+  background: rgba(15, 19, 25, 0.95);
+  border: 1px solid var(--border-subtle);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  z-index: 50;
+}
+
+/* Reveal callsign badge on hover or when aircraft is selected */
+.custom-radar-icon:hover {
+  z-index: 10000 !important;
+}
+
+.radar-marker-container:hover .marker-callsign-badge,
+.radar-marker-container.is-selected .marker-callsign-badge,
+.custom-radar-icon:hover .marker-callsign-badge {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translate(-50%, 0) !important;
+  z-index: 999;
+}
+
+/* ================= Telemetry Data Drawer / Modal ================= */
+.telemetry-drawer {
+  position: fixed;
+  bottom: -480px;
+  left: 0;
+  width: 100vw;
+  height: 420px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  z-index: 1500;
+  transition: bottom 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.telemetry-drawer.open {
+  bottom: 0;
+}
+
+.drawer-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-table-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 0 16px;
+}
+
+.telemetry-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.telemetry-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  color: var(--text-dim);
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}
+
+.telemetry-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.telemetry-table tr:hover {
+  background: var(--bg-card);
+  cursor: pointer;
+}
+
+/* ================= Responsive Layout ================= */
+@media (max-width: 900px) {
+  .sidebar-hud {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    max-width: 380px;
+    transform: translateX(100%);
+  }
+  .sidebar-hud.mobile-open {
+    transform: translateX(0);
+  }
+}
+
+/* ================= Flight Mode Selector ================= */
+.flight-mode-selector {
+  display: flex;
+  align-items: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 4px 12px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.mode-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-card);
+}
+
+.mode-btn.active[data-mode="military"] {
+  background: rgba(185, 28, 28, 0.25);
+  border: 1px solid rgba(185, 28, 28, 0.5);
+  color: #fca5a5;
+}
+
+.mode-btn.active[data-mode="commercial"] {
+  background: rgba(29, 78, 216, 0.25);
+  border: 1px solid rgba(29, 78, 216, 0.5);
+  color: #93c5fd;
+}
+
+.mode-btn.active[data-mode="all"] {
+  background: rgba(6, 95, 70, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+}
+
+/* ================= Commercial Flight Card Variant ================= */
+.flight-card.is-commercial {
+  border-left: 3px solid #1d4ed8;
+  background: rgba(29, 78, 216, 0.04);
+}
+
+.flight-card.is-commercial:hover {
+  background: rgba(29, 78, 216, 0.09);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.flight-card.is-commercial.active {
+  background: rgba(29, 78, 216, 0.15);
+  border-color: #60a5fa;
+}
+
+.flight-card.is-commercial .card-callsign {
+  color: #e2e8f0;
+}
+
+/* Commercial callsign badge on map */
+.commercial-badge {
+  background: rgba(29, 78, 216, 0.85) !important;
+  border-color: #3b82f6 !important;
+  color: #bfdbfe !important;
+}
+
+/* ================= Stats bar dynamic group hiding ================= */
+.mil-stat-group,
+.com-stat-group {
+  transition: opacity 0.2s ease;
+}
+
+/* ================= Flight Anomaly & Emergency Detection System ================= */
+
+/* Alerts Category Pill */
+.cat-pill.alert-filter-pill {
+  transition: all 0.2s ease;
+}
+.cat-pill.alert-filter-pill.active {
+  background: rgba(220, 38, 38, 0.25) !important;
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+}
+
+/* Flight Cards with Detections */
+.flight-card.has-critical {
+  border-left: 3px solid #ef4444 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+.flight-card.has-critical:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+}
+
+.flight-card.has-warning {
+  border-left: 3px solid #f59e0b !important;
+  background: rgba(245, 158, 11, 0.06) !important;
+}
+.flight-card.has-warning:hover {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.6) !important;
+}
+
+/* Card Detection Mini Badges */
+.card-detections-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.det-badge {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+}
+.det-badge.critical {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+}
+.det-badge.warning {
+  background: rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fde68a;
+}
+.det-badge.info {
+  background: rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  color: #bae6fd;
+}
+
+/* Target HUD Detections Box */
+.target-detections-box {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.08);
+}
+.target-detections-header {
+  font-size: 0.66rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #f87171;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.target-detections-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.hud-detection-item {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  padding: 5px 8px;
+  border-left: 3px solid #ef4444;
+}
+.hud-detection-item.warning {
+  border-left-color: #f59e0b;
+}
+.hud-detection-item.info {
+  border-left-color: #38bdf8;
+}
+.hud-det-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.hud-det-label {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.hud-det-label.critical { color: #fca5a5; }
+.hud-det-label.warning { color: #fde68a; }
+.hud-det-label.info { color: #7dd3fc; }
+.hud-det-desc {
+  font-size: 0.64rem;
+  color: var(--text-dim);
+  line-height: 1.25;
+}
+
+/* Map Marker Alert Tag */
+.marker-alert-tag {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 3px);
+  margin-top: 5px;
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* Critical emergency alerts remain visible */
+.marker-alert-tag.critical {
+  opacity: 0.95;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  background: rgba(220, 38, 38, 0.9);
+  color: #ffffff;
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+}
+
+.radar-marker-container:hover .marker-alert-tag,
+.radar-marker-container.is-selected .marker-alert-tag,
+.custom-radar-icon:hover .marker-alert-tag {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translate(-50%, 0) !important;
+  z-index: 999;
+}
+
+.marker-alert-tag.warning {
+  background: rgba(217, 119, 6, 0.9);
+  color: #ffffff;
+  border: 1px solid #f59e0b;
+}
+.marker-alert-tag.ident {
+  background: rgba(14, 165, 233, 0.9);
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+}
+
+/* Marker pulse animation */
+@keyframes markerPulseAnim {
+  0% { r: 9; opacity: 1; stroke-width: 2; }
+  50% { r: 13; opacity: 0.6; stroke-width: 1.5; }
+  100% { r: 16; opacity: 0; stroke-width: 0.5; }
+}
+.marker-emergency-pulse {
+  animation: markerPulseAnim 1.4s infinite ease-out;
+  transform-origin: center;
+}
+
+/* ================= Aircraft Real Photo Card ================= */
+.target-photo-card {
+  margin-top: 10px;
+  margin-bottom: 12px;
+  background: rgba(10, 15, 22, 0.95);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.target-photo-wrapper {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  background: #090d14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.target-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.3s ease;
+}
+
+.target-photo-card:hover .target-photo-img {
+  transform: scale(1.03);
+}
+
+.target-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  text-align: center;
+  padding: 12px;
+}
+
+.photo-placeholder-icon {
+  width: 28px;
+  height: 28px;
+  fill: rgba(148, 163, 184, 0.3);
+}
+
+.target-photo-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+}
+
+.photo-author {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-link {
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.photo-link:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+

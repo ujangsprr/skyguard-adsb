@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyGuard Sentinel — ADSB REST API Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #090c10;
+      --bg-subtle: #0d1117;
+      --bg-surface: #131720;
+      --bg-panel: #161b26;
+      --bg-code: #0b0e14;
+      
+      --border: #212631;
+      --border-muted: #1a1f2c;
+      --border-focus: #388bfd;
+      
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --text-dim: #6e7681;
+      
+      --accent: #58a6ff;
+      --accent-muted: rgba(56, 139, 253, 0.15);
+      --green: #3fb950;
+      --green-muted: rgba(63, 185, 80, 0.12);
+      --orange: #d29922;
+      --orange-muted: rgba(210, 153, 34, 0.12);
+      --red: #f85149;
+      --red-muted: rgba(248, 81, 73, 0.12);
+      
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      
+      --sidebar-width: 270px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html {
+      scroll-behavior: smooth;
+      color-scheme: dark;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      display: flex;
+      min-height: 100vh;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Minimalist Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #262c36; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b4354; }
+
+    /* ================= Sidebar ================= */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-subtle);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+    }
+
+    .sidebar-brand {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .brand-logo-svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--accent);
+    }
+
+    .brand-text {
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-ver {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Sidebar Search */
+    .sidebar-search-area {
+      padding: 12px 16px 8px;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 10px;
+      width: 13px;
+      height: 13px;
+      fill: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      padding: 6px 10px 6px 30px;
+      border-radius: 5px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus {
+      border-color: var(--border-focus);
+    }
+    .search-kbd {
+      position: absolute;
+      right: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      background: var(--bg-surface);
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+
+    /* Sidebar Nav */
+    .sidebar-nav {
+      padding: 8px 10px 24px;
+      flex: 1;
+    }
+
+    .nav-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      padding: 14px 10px 6px;
+    }
+
+    .nav-menu {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 5px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.12s;
+    }
+
+    .nav-item a:hover {
+      background: var(--bg-surface);
+      color: var(--text);
+    }
+
+    .nav-item a.active {
+      background: var(--accent-muted);
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .method-chip {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      letter-spacing: 0.02em;
+    }
+    .chip-get { background: var(--green-muted); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.3); }
+    .chip-post { background: var(--orange-muted); color: var(--orange); border: 1px solid rgba(210, 153, 34, 0.3); }
+
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-subtle);
+    }
+
+    .btn-back-radar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 7px 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 0.78rem;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-back-radar:hover {
+      background: var(--bg-surface);
+      color: var(--text);
+      border-color: #3b4354;
+    }
+    .btn-back-radar svg { width: 14px; height: 14px; fill: currentColor; }
+
+    /* ================= Main View ================= */
+    .main-wrap {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* Top Sub-Header */
+    .doc-topbar {
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      min-width: 280px;
+      flex-shrink: 0;
+    }
+    .topbar-left span.current {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .base-uri-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .base-uri-card code { color: var(--accent); }
+
+    .btn-copy-base {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.7rem;
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .btn-copy-base:hover { color: var(--text); background: var(--bg-surface); }
+
+    /* Content Area */
+    .doc-content {
+      padding: 40px 48px 100px;
+      max-width: 1320px;
+    }
+
+    /* Clean Overview Header */
+    .doc-intro {
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .intro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+    }
+
+    .intro-title {
+      font-size: 1.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .intro-lead {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      max-width: 780px;
+      line-height: 1.6;
+    }
+
+    /* Spec Key-Value Row */
+    .spec-metadata-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 24px;
+    }
+
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .spec-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .spec-value {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
+    /* Section Wrapper */
+    .doc-section {
+      margin-bottom: 56px;
+      scroll-margin-top: 72px;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+
+    .section-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* ================= Endpoint Layout ================= */
+    .endpoint-card {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+
+    .endpoint-header {
+      padding: 14px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .endpoint-signature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ep-method {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.03em;
+    }
+
+    .ep-path {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-copy-ep {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.68rem;
+      font-family: var(--font-mono);
+      transition: all 0.12s;
+    }
+    .btn-copy-ep:hover {
+      background: var(--bg-panel);
+      color: var(--text);
+      border-color: #3b4354;
+    }
+
+    .ep-summary-text {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    /* Two-Column Workspace */
+    .endpoint-body {
+      display: grid;
+      grid-template-columns: 1.15fr 0.95fr;
+      divide-x: 1px solid var(--border);
+    }
+
+    .endpoint-spec-col {
+      padding: 20px 24px;
+      border-right: 1px solid var(--border);
+    }
+
+    .endpoint-code-col {
+      background: var(--bg-code);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .spec-prose {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    .table-caption {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    /* Param Table */
+    .param-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    table.spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    table.spec-table th {
+      background: var(--bg-surface);
+      padding: 7px 12px;
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+
+    table.spec-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      vertical-align: top;
+    }
+
+    table.spec-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .param-name {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .param-type {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .badge-req {
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-left: 4px;
+    }
+    .req-yes { background: var(--red-muted); color: var(--red); border: 1px solid rgba(248, 81, 73, 0.3); }
+    .req-no { background: var(--bg-surface); color: var(--text-dim); }
+
+    .param-desc {
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .param-allowed {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* Response Codes */
+    .status-badge-list {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .code-tag {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+    }
+    .code-200 { color: var(--green); border-color: rgba(63, 185, 80, 0.3); }
+    .code-400 { color: var(--orange); border-color: rgba(210, 153, 34, 0.3); }
+
+    /* Interactive Code Panel */
+    .code-panel-top {
+      padding: 8px 14px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lang-switcher {
+      display: flex;
+      gap: 3px;
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .lang-btn:hover { color: var(--text); }
+    .lang-btn.active {
+      background: var(--bg-panel);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .btn-copy-code {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .btn-copy-code:hover {
+      background: var(--bg-panel);
+      color: var(--text);
+      border-color: #3b4354;
+    }
+
+    .code-display {
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: #d1d7e0;
+      overflow-x: auto;
+      max-height: 200px;
+      white-space: pre;
+      line-height: 1.5;
+    }
+
+    /* Live Execution Bar */
+    .live-exec-bar {
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .exec-input {
+      flex: 1;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 5px 9px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      outline: none;
+    }
+    .exec-input:focus { border-color: var(--border-focus); }
+
+    .btn-run {
+      background: var(--bg-panel);
+      border: 1px solid #3b4354;
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-run:hover {
+      background: #252b38;
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .live-output-window {
+      flex: 1;
+      padding: 14px;
+      background: var(--bg-code);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      color: #8b949e;
+      overflow-y: auto;
+      max-height: 260px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .live-output-footer {
+      padding: 6px 14px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ================= Data Reference Sections ================= */
+    .dictionary-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 12px;
+      background: var(--bg-subtle);
+    }
+
+    .swatch-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--bg-panel);
+      border: 1px solid #3b4354;
+      color: var(--text);
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      padding: 8px 14px;
+      border-radius: 5px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.18s ease;
+      pointer-events: none;
+    }
+    .toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 1060px) {
+      .endpoint-body {
+        grid-template-columns: 1fr;
+      }
+      .endpoint-spec-col {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root { --sidebar-width: 0px; }
+      .sidebar { transform: translateX(-100%); width: 260px; }
+      .sidebar.open { transform: translateX(0); }
+      .main-wrap { margin-left: 0; }
+      .doc-topbar { padding: 0 16px; }
+      .doc-content { padding: 24px 16px 80px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">Copied to clipboard</div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <a href="/" class="brand-title-wrap">
+        <svg class="brand-logo-svg" viewBox="0 0 24 24"><path d="M12 2 L14 7 L21 11 L21 13 L14 13 L14 19 L17 21 L17 22 L12 21 L7 22 L7 21 L10 19 L10 13 L3 13 L3 11 L10 7 Z"/></svg>
+        <span class="brand-text">SkyGuard API</span>
+      </a>
+      <span class="brand-ver">v1.2</span>
+    </div>
+
+    <!-- Search box -->
+    <div class="sidebar-search-area">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search endpoints..." autocomplete="off">
+        <span class="search-kbd">/</span>
+      </div>
+    </div>
+
+    <!-- Menu -->
+    <nav class="sidebar-nav">
+      <div class="nav-label">General</div>
+      <ul class="nav-menu">
+        <li class="nav-item"><a href="#overview" class="active">Overview &amp; Architecture</a></li>
+        <li class="nav-item"><a href="#connectivity">Network &amp; Caching</a></li>
+      </ul>
+
+      <div class="nav-label">Telemetry Services</div>
+      <ul class="nav-menu" id="navEndpointsList">
+        <li class="nav-item">
+          <a href="#ep-all-flights">
+            <span>/api/all-flights</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-military">
+            <span>/api/military-flights</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-track">
+            <span>/api/track/{icao}</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-route">
+            <span>/api/flight-route/{icao}</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-photo">
+            <span>/api/aircraft-photo/{icao}</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-fir">
+            <span>/api/fir/indonesia</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="nav-label">System Diagnostics</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="#ep-stats">
+            <span>/api/stats</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-status">
+            <span>/api/status</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-refresh">
+            <span>/api/refresh-all</span>
+            <span class="method-chip chip-post">POST</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="nav-label">Specifications</div>
+      <ul class="nav-menu">
+        <li class="nav-item"><a href="#category-specs">Airframe Taxonomy</a></li>
+        <li class="nav-item"><a href="#emergency-specs">Emergency Squawks</a></li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="/" class="btn-back-radar">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        Return to Map
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Column -->
+  <div class="main-wrap">
+    
+    <!-- Top Bar -->
+    <header class="doc-topbar">
+      <div class="topbar-left">
+        <span>Documentation</span>
+        <span>/</span>
+        <span class="current" id="topbarBreadcrumb">API Reference</span>
+      </div>
+
+      <div class="topbar-right">
+        <div class="base-uri-card">
+          <span>Host:</span>
+          <code id="hostUrlDisplay">http://localhost:8080</code>
+          <button class="btn-copy-base" onclick="copyValue(window.location.origin)">Copy</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="doc-content">
+
+      <!-- Overview Header -->
+      <section class="doc-intro" id="overview">
+        <div class="intro-badge">Technical Specification</div>
+        <h1 class="intro-title">SkyGuard Sentinel ADSB REST API</h1>
+        <p class="intro-lead">
+          Real-time surveillance interface providing live global flight state vectors, military airframe identification, geospatial FIR Indonesia boundary verification, and transponder emergency evaluation.
+        </p>
+
+        <div class="spec-metadata-row">
+          <div class="spec-item">
+            <span class="spec-label">Protocol</span>
+            <span class="spec-value">HTTP/1.1 REST</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Payload Format</span>
+            <span class="spec-value">JSON (UTF-8)</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Compression</span>
+            <span class="spec-value">Gzip (Automatic)</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Cross-Origin</span>
+            <span class="spec-value">CORS Enabled (*)</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">State Cache TTL</span>
+            <span class="spec-value">15 Seconds</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Database Index</span>
+            <span class="spec-value">494,976 Airframes</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Network & Connectivity -->
+      <section class="doc-section" id="connectivity">
+        <h2 class="section-title">Network &amp; Caching Policy</h2>
+        <p class="section-desc">Technical constraints, CORS configuration, and payload compression</p>
+
+        <div class="param-table-wrap">
+          <table class="spec-table">
+            <thead>
+              <tr><th>Aspect</th><th>Specification</th><th>Details</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>CORS Policy</code></td>
+                <td><code>Access-Control-Allow-Origin: *</code></td>
+                <td>Permits direct client-side fetch from single-page web applications and mobile clients.</td>
+              </tr>
+              <tr>
+                <td><code>Rate Control</code></td>
+                <td>15-second refresh cycle</td>
+                <td>In-memory caching prevents redundant external upstream requests while serving local clients instantly.</td>
+              </tr>
+              <tr>
+                <td><code>Gzip Encoding</code></td>
+                <td>Level 5 Gzip Compression</td>
+                <td>Compresses 2.5 MB payloads down to ~250 KB when client sends <code>Accept-Encoding: gzip</code>.</td>
+              </tr>
+              <tr>
+                <td><code>Authentication</code></td>
+                <td>None (Internal / LAN)</td>
+                <td>Open local network access. Upstream token management with OpenSky OAuth2 is handled internally.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 1: /api/all-flights -->
+      <section class="doc-section" id="ep-all-flights">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/all-flights <button class="btn-copy-ep" onclick="copyValue('/api/all-flights')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Global flight vectors (Commercial + Military)</div>
+          </div>
+
+          <div class="endpoint-body">
+            <!-- Left Column: Specs -->
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Returns active airborne transponder state vectors worldwide. Each aircraft is enriched with verified registration, ICAO type code, airline/military operator, FIR Indonesia boundary flag, and anomaly detections.
+              </p>
+
+              <div class="table-caption">Query Parameters</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <span class="param-name">mode</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">string</span></td>
+                      <td class="param-desc">
+                        Fleet sector filter.<br>
+                        <span class="param-allowed">Values: 'all' (default) | 'military' | 'commercial'</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span class="param-name">category</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">string</span></td>
+                      <td class="param-desc">
+                        Airframe subtype filter.<br>
+                        <span class="param-allowed">e.g. 'heavy', 'airline', 'cargo_commercial', 'fighter', 'turboprop', 'business_jet', 'helicopter'</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span class="param-name">in_fir</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">boolean</span></td>
+                      <td class="param-desc">
+                        When <code>true</code> or <code>1</code>, filters for flights positioned inside Jakarta (WIIF) or Ujung Pandang (WAAF) FIR airspace.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span class="param-name">emergency</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">boolean</span></td>
+                      <td class="param-desc">
+                        When <code>true</code>, returns only flights broadcasting squawk 7700/7600/7500 or kinematic flight anomalies.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span class="param-name">country</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">string</span></td>
+                      <td class="param-desc">
+                        Filters by country of registration (e.g. <code>Indonesia</code>, <code>United States</code>).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span class="param-name">q</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">string</span></td>
+                      <td class="param-desc">
+                        Substring search across callsign, ICAO hex, tail registration, or operator name.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <span class="param-name">limit</span>
+                        <span class="badge-req req-no">OPTIONAL</span>
+                      </td>
+                      <td><span class="param-type">integer</span></td>
+                      <td class="param-desc">
+                        Limits the maximum count of returned flight records.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="table-caption">Status Codes</div>
+              <div class="status-badge-list">
+                <span class="code-tag code-200">200 OK — Telemetry vector array</span>
+                <span class="code-tag code-400">400 Bad Request — Invalid parameter syntax</span>
+              </div>
+            </div>
+
+            <!-- Right Column: Interactive Code -->
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeAll">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeAll')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeAll">curl -s "http://localhost:8080/api/all-flights?in_fir=true&limit=5"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlAll" value="/api/all-flights?in_fir=true&limit=3">
+                <button class="btn-run" onclick="runRequest('urlAll', 'outAll', 'metaAll')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outAll">// Click "Execute" to inspect live response</div>
+              <div class="live-output-footer" id="metaAll">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 2: /api/military-flights -->
+      <section class="doc-section" id="ep-military">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/military-flights <button class="btn-copy-ep" onclick="copyValue('/api/military-flights')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Dedicated defense &amp; tactical airframe feed</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Delivers only verified military aircraft, air defense transports, aerial refuelers, combat jets, and reconnaissance platforms matched against military database hex ranges.
+              </p>
+
+              <div class="table-caption">Parameters</div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px;">
+                Accepts identical query parameters as <code>/api/all-flights</code> (e.g. <code>category</code>, <code>in_fir</code>, <code>emergency</code>, <code>limit</code>).
+              </p>
+
+              <div class="table-caption">Standard Flight Object Fields</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Key</th><th>Type</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><code>icao24</code></td><td>string</td><td>6-character transponder hex identifier.</td></tr>
+                    <tr><td><code>callsign</code></td><td>string</td><td>Operational tactical callsign or registration.</td></tr>
+                    <tr><td><code>type_code</code></td><td>string</td><td>ICAO airframe type code (e.g. C17, F16, B738).</td></tr>
+                    <tr><td><code>desc</code></td><td>string</td><td>Full manufacturer and model description.</td></tr>
+                    <tr><td><code>category</code></td><td>string</td><td>Classified silhouette category key.</td></tr>
+                    <tr><td><code>operator</code></td><td>string</td><td>Armed force, squadron, or commercial operator.</td></tr>
+                    <tr><td><code>in_fir_indonesia</code></td><td>boolean</td><td>Indicates presence within Indonesian FIR boundary.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeMil">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeMil')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeMil">curl -s "http://localhost:8080/api/military-flights?limit=5"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlMil" value="/api/military-flights?limit=3">
+                <button class="btn-run" onclick="runRequest('urlMil', 'outMil', 'metaMil')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outMil">// Click "Execute" to inspect military feed</div>
+              <div class="live-output-footer" id="metaMil">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 3: /api/track/{icao24} -->
+      <section class="doc-section" id="ep-track">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/track/{icao24} <button class="btn-copy-ep" onclick="copyValue('/api/track/7500DA')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Coordinate breadcrumb trail history</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Retrieves coordinate history recorded for an individual transponder address over recent scan intervals. Used to render route tracks on radar canvases.
+              </p>
+
+              <div class="table-caption">Path Parameter</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <span class="param-name">icao24</span>
+                        <span class="badge-req req-yes">REQUIRED</span>
+                      </td>
+                      <td><span class="param-type">string (hex)</span></td>
+                      <td class="param-desc">6-character ICAO24 transponder identifier (case-insensitive).</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="table-caption">Array Structure</div>
+              <p style="font-size:0.8rem; color:var(--text-muted);">
+                Each element in <code>trail</code> is a 4-item tuple: <code>[latitude, longitude, altitude_ft, unix_timestamp]</code>.
+              </p>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeTrack">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeTrack')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeTrack">curl -s "http://localhost:8080/api/track/7500DA"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlTrack" value="/api/track/7500DA">
+                <button class="btn-run" onclick="runRequest('urlTrack', 'outTrack', 'metaTrack')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outTrack">// Click "Execute" to retrieve flight track</div>
+              <div class="live-output-footer" id="metaTrack">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 4: /api/flight-route/{icao24} -->
+      <section class="doc-section" id="ep-route">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/flight-route/{icao24} <button class="btn-copy-ep" onclick="copyValue('/api/flight-route/7500DA')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Origin &amp; destination airport resolution</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Resolves nearest departure airfield and planned destination airport with official ICAO codes, municipal city names, and coordinates.
+              </p>
+
+              <div class="table-caption">Path Parameter</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <span class="param-name">icao24</span>
+                        <span class="badge-req req-yes">REQUIRED</span>
+                      </td>
+                      <td><span class="param-type">string</span></td>
+                      <td class="param-desc">Aircraft transponder address.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeRoute">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeRoute')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeRoute">curl -s "http://localhost:8080/api/flight-route/7500DA"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlRoute" value="/api/flight-route/7500DA">
+                <button class="btn-run" onclick="runRequest('urlRoute', 'outRoute', 'metaRoute')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outRoute">// Click "Execute" to resolve route</div>
+              <div class="live-output-footer" id="metaRoute">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 5: /api/aircraft-photo/{icao24} -->
+      <section class="doc-section" id="ep-photo">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/aircraft-photo/{icao24} <button class="btn-copy-ep" onclick="copyValue('/api/aircraft-photo/7500DA?reg=PK-GIE')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Verified airframe photography CDN asset</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Queries aviation photo archives to provide confirmed high-resolution imagery for the designated airframe, including photographer copyright attribution.
+              </p>
+
+              <div class="table-caption">Parameters</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Parameter</th><th>In</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="param-name">icao24</span></td>
+                      <td>Path</td>
+                      <td class="param-desc">6-character transponder address.</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">reg</span></td>
+                      <td>Query</td>
+                      <td class="param-desc">Optional tail registration (e.g. <code>PK-GIE</code>) to increase matching accuracy.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codePhoto">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codePhoto')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codePhoto">curl -s "http://localhost:8080/api/aircraft-photo/7500DA?reg=PK-GIE"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlPhoto" value="/api/aircraft-photo/7500DA?reg=PK-GIE">
+                <button class="btn-run" onclick="runRequest('urlPhoto', 'outPhoto', 'metaPhoto')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outPhoto">// Click "Execute" to query photo assets</div>
+              <div class="live-output-footer" id="metaPhoto">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 6: /api/stats & /api/status -->
+      <section class="doc-section" id="ep-stats">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/stats</span>
+            </div>
+            <div class="ep-summary-text">Lightweight aggregated telemetry metrics</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Summarizes total airborne units, ground status, emergency counts, and category distributions without transmitting coordinate arrays.
+              </p>
+              <div class="table-caption">Diagnostic Endpoints</div>
+              <ul style="font-size:0.82rem; color:var(--text-muted); padding-left:18px; line-height:1.7;">
+                <li><code>GET /api/stats</code> — Real-time telemetry overview</li>
+                <li><code>GET /api/status</code> — Backend server health, OpenSky token status, and DB counts</li>
+                <li><code>POST /api/refresh-all</code> — Forces an immediate out-of-cycle radar scan</li>
+              </ul>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeStats">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeStats')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeStats">curl -s "http://localhost:8080/api/stats"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlStats" value="/api/stats">
+                <button class="btn-run" onclick="runRequest('urlStats', 'outStats', 'metaStats')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outStats">// Click "Execute" to inspect system metrics</div>
+              <div class="live-output-footer" id="metaStats">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SPECIFICATION 1: Categories -->
+      <section class="doc-section" id="category-specs">
+        <h2 class="section-title">Airframe Taxonomy</h2>
+        <p class="section-desc">Classified aircraft category keys, silhouettes, and typical models</p>
+
+        <div class="dictionary-table-wrap">
+          <table class="spec-table">
+            <thead>
+              <tr><th>Category Key</th><th>Sector</th><th>Indicator</th><th>Representative Airframe Models</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>fighter</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#f87171;"></span>Red</td>
+                <td>F-16 Fighting Falcon, F-35 Lightning II, Su-30 Flanker, F/A-18 Hornet</td>
+              </tr>
+              <tr>
+                <td><code>bomber</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#c084fc;"></span>Violet</td>
+                <td>B-52H Stratofortress, B-1B Lancer, B-2 Spirit, Tu-95 Bear</td>
+              </tr>
+              <tr>
+                <td><code>transport</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#a3e635;"></span>Lime</td>
+                <td>C-17A Globemaster III, C-130 Hercules, A400M Atlas, C-5M Galaxy</td>
+              </tr>
+              <tr>
+                <td><code>tanker</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#fb923c;"></span>Orange</td>
+                <td>KC-135 Stratotanker, KC-46 Pegasus, A330 MRTT, KC-10 Extender</td>
+              </tr>
+              <tr>
+                <td><code>recon</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#67e8f9;"></span>Cyan</td>
+                <td>E-3 Sentry AWACS, P-8A Poseidon, RC-135 Rivet Joint, E-2D Hawkeye</td>
+              </tr>
+              <tr>
+                <td><code>trainer</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#fde68a;"></span>Pale Yellow</td>
+                <td>T-50 Golden Eagle, T-38 Talon, KT-1B Woongbi, Hawk 100</td>
+              </tr>
+              <tr>
+                <td><code>drone</code></td>
+                <td>Military</td>
+                <td><span class="swatch-dot" style="background:#e879f9;"></span>Fuchsia</td>
+                <td>MQ-9 Reaper, RQ-4 Global Hawk, Bayraktar TB2, MQ-4C Triton</td>
+              </tr>
+              <tr>
+                <td><code>heavy</code></td>
+                <td>Commercial</td>
+                <td><span class="swatch-dot" style="background:#38bdf8;"></span>Sky Blue</td>
+                <td>Boeing 777-300ER, Boeing 787, Airbus A350-900, Airbus A380, A330</td>
+              </tr>
+              <tr>
+                <td><code>airline</code></td>
+                <td>Commercial</td>
+                <td><span class="swatch-dot" style="background:#60a5fa;"></span>Blue</td>
+                <td>Airbus A320neo, Boeing 737 MAX, Airbus A220, Embraer E195</td>
+              </tr>
+              <tr>
+                <td><code>cargo_commercial</code></td>
+                <td>Commercial</td>
+                <td><span class="swatch-dot" style="background:#fb923c;"></span>Amber</td>
+                <td>Dedicated cargo operators: FedEx, UPS Airlines, DHL Aviation, Atlas Air</td>
+              </tr>
+              <tr>
+                <td><code>turboprop</code></td>
+                <td>Commercial</td>
+                <td><span class="swatch-dot" style="background:#4ade80;"></span>Green</td>
+                <td>ATR 72-600, Bombardier Dash 8 Q400, Cessna 208 Caravan</td>
+              </tr>
+              <tr>
+                <td><code>business_jet</code></td>
+                <td>Civilian</td>
+                <td><span class="swatch-dot" style="background:#f0abfc;"></span>Magenta</td>
+                <td>Gulfstream G650, Bombardier Global 7500, Dassault Falcon, Citation</td>
+              </tr>
+              <tr>
+                <td><code>helicopter</code></td>
+                <td>Civil / Mil</td>
+                <td><span class="swatch-dot" style="background:#fcd34d;"></span>Gold</td>
+                <td>Bell 412, Airbus H225M Caracal, Sikorsky UH-60, EC135</td>
+              </tr>
+              <tr>
+                <td><code>light_aircraft</code></td>
+                <td>Civilian</td>
+                <td><span class="swatch-dot" style="background:#86efac;"></span>Pale Green</td>
+                <td>Cessna 172 Skyhawk, Piper PA-28 Archer, Diamond DA42, Cirrus SR22</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SPECIFICATION 2: Emergency & Anomalies -->
+      <section class="doc-section" id="emergency-specs">
+        <h2 class="section-title">Emergency Squawks &amp; Anomaly Codes</h2>
+        <p class="section-desc">Transponder event codes generated by the flight anomaly surveillance engine</p>
+
+        <div class="dictionary-table-wrap">
+          <table class="spec-table">
+            <thead>
+              <tr><th>Detection Code</th><th>Severity</th><th>Trigger Criteria</th><th>ICAO Operational Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>squawk_7700</code></td>
+                <td><span class="badge-req req-yes">CRITICAL</span></td>
+                <td>Squawk == "7700"</td>
+                <td>General in-flight emergency declared by flight crew.</td>
+              </tr>
+              <tr>
+                <td><code>squawk_7600</code></td>
+                <td><span class="badge-req req-yes">CRITICAL</span></td>
+                <td>Squawk == "7600"</td>
+                <td>Radio failure / Lost two-way air traffic communication.</td>
+              </tr>
+              <tr>
+                <td><code>squawk_7500</code></td>
+                <td><span class="badge-req req-yes">CRITICAL</span></td>
+                <td>Squawk == "7500"</td>
+                <td>Unlawful interference / Hijacking alert.</td>
+              </tr>
+              <tr>
+                <td><code>rapid_descent</code></td>
+                <td><span class="badge-req req-yes">CRITICAL</span></td>
+                <td>Vertical speed &le; -3,500 fpm</td>
+                <td>Emergency descent rate (e.g. depressurization or control event).</td>
+              </tr>
+              <tr>
+                <td><code>rapid_climb</code></td>
+                <td><span class="badge-req" style="background:var(--orange-muted); color:var(--orange); border:1px solid rgba(210,153,34,0.3);">WARNING</span></td>
+                <td>Vertical speed &ge; +3,800 fpm</td>
+                <td>High climb rate / Scramble intercept ascent profile.</td>
+              </tr>
+              <tr>
+                <td><code>supersonic</code></td>
+                <td><span class="badge-req" style="background:var(--orange-muted); color:var(--orange); border:1px solid rgba(210,153,34,0.3);">WARNING</span></td>
+                <td>Ground speed &ge; 550 kts</td>
+                <td>High-speed dash / Transonic or Supersonic flight regime.</td>
+              </tr>
+              <tr>
+                <td><code>fir_violation</code></td>
+                <td><span class="badge-req" style="background:var(--orange-muted); color:var(--orange); border:1px solid rgba(210,153,34,0.3);">WARNING</span></td>
+                <td>Foreign military in FIR</td>
+                <td>Foreign military aircraft active within Jakarta or Ujung Pandang FIR.</td>
+              </tr>
+              <tr>
+                <td><code>spi_ident</code></td>
+                <td><span class="badge-req" style="background:var(--accent-muted); color:var(--accent); border:1px solid rgba(56,139,253,0.3);">INFO</span></td>
+                <td>SPI transponder flag == true</td>
+                <td>Special Position Identification pulse requested by ATC radar controller.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Set origin
+    const baseOrigin = window.location.origin;
+    document.getElementById("hostUrlDisplay").textContent = baseOrigin;
+
+    // Toast helper
+    function showToast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("visible");
+      setTimeout(() => el.classList.remove("visible"), 2000);
+    }
+
+    function copyValue(val) {
+      navigator.clipboard.writeText(val).then(() => showToast("Copied to clipboard"));
+    }
+
+    function copySnippet(containerId) {
+      const el = document.getElementById(containerId);
+      if (el) copyValue(el.textContent.trim());
+    }
+
+    // Live Request Executor
+    async function runRequest(inputId, outputId, metaId) {
+      const input = document.getElementById(inputId);
+      const out = document.getElementById(outputId);
+      const meta = document.getElementById(metaId);
+
+      const path = input.value.trim();
+      const url = path.startsWith("http") ? path : `${baseOrigin}${path}`;
+
+      out.textContent = `Connecting to ${url}...`;
+      meta.innerHTML = `<span>Status: Executing</span> <span>Latency: ---</span>`;
+
+      try {
+        const t0 = performance.now();
+        const res = await fetch(url);
+        const t1 = performance.now();
+        const latency = Math.round(t1 - t0);
+
+        const data = await res.json();
+        const formatted = JSON.stringify(data, null, 2);
+
+        out.textContent = formatted;
+        meta.innerHTML = `
+          <span style="color:${res.ok ? 'var(--green)' : 'var(--red)'}; font-weight:600;">HTTP ${res.status} ${res.statusText || 'OK'}</span>
+          <span>Latency: ${latency}ms</span>
+          <span>Payload: ${(formatted.length / 1024).toFixed(1)} KB</span>
+        `;
+      } catch (err) {
+        out.textContent = `Error: ${err.message}`;
+        meta.innerHTML = `<span style="color:var(--red);">Request Failed</span> <span>Latency: ---</span>`;
+      }
+    }
+
+    // Snippet Language Switching
+    document.querySelectorAll(".lang-switcher").forEach(switcher => {
+      const targetId = switcher.dataset.target;
+      switcher.querySelectorAll(".lang-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          switcher.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          updateSnippet(targetId, btn.dataset.lang);
+        });
+      });
+    });
+
+    function updateSnippet(targetId, lang) {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+
+      const codeMap = {
+        codeAll: {
+          url: `${baseOrigin}/api/all-flights?in_fir=true&limit=5`,
+          py: `import requests\n\nres = requests.get("${baseOrigin}/api/all-flights", params={"in_fir": "true", "limit": 5})\ndata = res.json()\nprint(f"Loaded {len(data['flights'])} flights")`,
+          js: `const res = await fetch('${baseOrigin}/api/all-flights?in_fir=true&limit=5');\nconst data = await res.json();\nconsole.log(data.flights);`
+        },
+        codeMil: {
+          url: `${baseOrigin}/api/military-flights?limit=5`,
+          py: `import requests\n\nres = requests.get("${baseOrigin}/api/military-flights", params={"limit": 5})\nflights = res.json()['flights']\nfor f in flights:\n    print(f"{f['callsign']} | {f['desc']} | {f['operator']}")`,
+          js: `const res = await fetch('${baseOrigin}/api/military-flights?limit=5');\nconst { flights } = await res.json();\nconsole.log(flights);`
+        },
+        codeTrack: {
+          url: `${baseOrigin}/api/track/7500DA`,
+          py: `import requests\n\nres = requests.get("${baseOrigin}/api/track/7500DA")\ntrail = res.json()['trail']\nprint(f"Recorded track points: {len(trail)}")`,
+          js: `const res = await fetch('${baseOrigin}/api/track/7500DA');\nconst { trail } = await res.json();\nconsole.log(trail);`
+        },
+        codeRoute: {
+          url: `${baseOrigin}/api/flight-route/7500DA`,
+          py: `import requests\n\nroute = requests.get("${baseOrigin}/api/flight-route/7500DA").json()\nprint(route.get('origin_display'), "->", route.get('dest_display'))`,
+          js: `const res = await fetch('${baseOrigin}/api/flight-route/7500DA');\nconst route = await res.json();\nconsole.log(route.origin, route.destination);`
+        },
+        codePhoto: {
+          url: `${baseOrigin}/api/aircraft-photo/7500DA?reg=PK-GIE`,
+          py: `import requests\n\nres = requests.get("${baseOrigin}/api/aircraft-photo/7500DA", params={"reg": "PK-GIE"})\nphoto = res.json()\nif photo['has_photo']:\n    print("Photo URL:", photo['large'])`,
+          js: `const res = await fetch('${baseOrigin}/api/aircraft-photo/7500DA?reg=PK-GIE');\nconst photo = await res.json();\nif (photo.has_photo) console.log(photo.large);`
+        },
+        codeStats: {
+          url: `${baseOrigin}/api/stats`,
+          py: `import requests\n\nstats = requests.get("${baseOrigin}/api/stats").json()\nprint(f"Airborne: {stats.get('airborne')}, Military: {stats.get('total_military')}")`,
+          js: `const res = await fetch('${baseOrigin}/api/stats');\nconst stats = await res.json();\nconsole.log(stats);`
+        }
+      };
+
+      const entry = codeMap[targetId];
+      if (!entry) return;
+
+      if (lang === 'curl') {
+        el.textContent = `curl -s "${entry.url}"`;
+      } else if (lang === 'python') {
+        el.textContent = entry.py;
+      } else if (lang === 'js') {
+        el.textContent = entry.js;
+      }
+    }
+
+    // Search filter in sidebar
+    const searchInput = document.getElementById("searchInput");
+    searchInput.addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      document.querySelectorAll("#navEndpointsList .nav-item").forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(q) ? "" : "none";
+      });
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "/" && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    // Smooth deterministic scroll spy (zero flicker/jumping)
+    let isScrollTicking = false;
+    window.addEventListener("scroll", () => {
+      if (isScrollTicking) return;
+      isScrollTicking = true;
+      requestAnimationFrame(() => {
+        const sections = Array.from(document.querySelectorAll("section[id]"));
+        const scrollPos = window.scrollY + 100;
+        let activeSec = sections[0];
+
+        for (const sec of sections) {
+          if (sec.offsetTop <= scrollPos) {
+            activeSec = sec;
+          } else {
+            break;
+          }
+        }
+
+        if (activeSec) {
+          const id = activeSec.id;
+          document.querySelectorAll(".sidebar-nav a").forEach(link => {
+            const match = link.getAttribute("href") === `#${id}`;
+            if (link.classList.contains("active") !== match) {
+              link.classList.toggle("active", match);
+              if (match) {
+                const textSpan = link.querySelector("span");
+                const label = textSpan ? textSpan.textContent : link.textContent.trim();
+                const crumb = document.getElementById("topbarBreadcrumb");
+                if (crumb && crumb.textContent !== label) crumb.textContent = label;
+              }
+            }
+          });
+        }
+        isScrollTicking = false;
+      });
+    }, { passive: true });
+  </script>
+</body>
+</html>
