@@ -23,20 +23,9 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 import threading
 
-# --- SSL Context for external API calls ---
-# TrueNAS / FreeBSD environments often lack a system CA bundle,
-# causing CERTIFICATE_VERIFY_FAILED on outbound HTTPS requests.
-# We create a permissive context only for our specific API calls;
-# the web server itself still runs plain HTTP on the LAN.
-_SSL_CTX = ssl.create_default_context()
-try:
-    import certifi
-    _SSL_CTX.load_verify_locations(certifi.where())
-    print("[SSL] Using certifi CA bundle.")
-except ImportError:
-    # certifi not installed — fall back to unverified context
-    _SSL_CTX = ssl._create_unverified_context()
-    print("[SSL] certifi not found. Using unverified SSL context (TrueNAS/FreeBSD fallback).")
+# Disable SSL verification globally
+ssl._create_default_https_context = ssl._create_unverified_context
+_SSL_CTX = ssl._create_unverified_context()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
