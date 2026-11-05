@@ -57,6 +57,8 @@
   let selectedIcao = null;
   let isRouteTrackActive = false;
   let routeLineLayer = null; // L.layerGroup for drawn route line between airports
+  let currentRouteData = null;
+  let currentTrailData = [];
   let isSidebarCollapsed = false;
   let isAudioEnabled = true;
   let countdownTimer = null;
@@ -346,6 +348,14 @@
       }
 
       secondsRemaining = pollIntervalSeconds;
+
+      // Update trajectory smoothly on periodic radar sweeps
+      if (selectedIcao) {
+        const activeTarget = allFlights.find(f => f.icao24 === selectedIcao);
+        if (activeTarget) {
+          updateTargetTrajectory(activeTarget, false);
+        }
+      }
 
     } catch (err) {
       console.error("Flight fetch error:", err);
@@ -720,8 +730,9 @@
       c.classList.toggle("active", c.dataset.icao === selectedIcao);
     });
 
-    loadFlightTrail(flight.icao24);
-    fetchFlightRoute(flight.icao24);
+    currentRouteData = null;
+    currentTrailData = [];
+    updateTargetTrajectory(flight, isRouteTrackActive);
     fetchAircraftPhoto(flight.icao24, flight.reg);
   }
 
@@ -778,78 +789,189 @@
     }
   }
 
-  // Fetch Origin and Destination Route
-  async function fetchFlightRoute(icao) {
-    try {
-      const resp = await fetch(`/api/flight-route/${icao}`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      if (icao !== selectedIcao) return;
+  // Unified Flight Trajectory Engine:
+  // - Origin Airport -> First ADS-B point: DASHED (putus-putus)
+  // - Active ADS-B continuous stream: SOLID (nyambung utuh, no dash)
+  // - Lost ADS-B gap (dt > 85s): DASHED (putus-putus reconnect)
+  // - Current Plane -> Destination Airport: DASHED (putus-putus proyeksi)
+  function renderCompleteTrajectory(flight, autoFit = false) {
+    if (!trailLayer) return;
+    trailLayer.clearLayers();
+    if (routeLineLayer) routeLineLayer.clearLayers();
 
-      if (data.origin_display) {
-        document.getElementById("targetOrigin").textContent = data.origin_display;
-      }
-      if (data.dest_display) {
-        document.getElementById("targetDest").textContent = data.dest_display;
-      }
+    if (!flight || !Number.isFinite(flight.lat) || !Number.isFinite(flight.lon)) return;
 
-      const flight = allFlights.find(f => f.icao24 === icao);
-      if (flight) {
-        flight.origin = data.origin_display;
-        flight.destination = data.dest_display;
-        renderFlightsList();
+    const boundsPoints = [];
+    const liveLatLng = [flight.lat, flight.lon];
+    boundsPoints.push(liveLatLng);
+
+    // Filter valid trail points: [lat, lon, alt_ft, timestamp]
+    const validTrail = (currentTrailData || []).filter(pt => 
+      Array.isArray(pt) && Number.isFinite(pt[0]) && Number.isFinite(pt[1])
+    );
+
+    const firstAdsbPoint = validTrail.length > 0 ? [validTrail[0][0], validTrail[0][1]] : liveLatLng;
+    const lastAdsbPoint = validTrail.length > 0 ? [validTrail[validTrail.length - 1][0], validTrail[validTrail.length - 1][1]] : liveLatLng;
+
+    // 1. ORIGIN AIRPORT (🛫) -> FIRST ADS-B POINT (DASHED)
+    if (currentRouteData && currentRouteData.origin && Number.isFinite(currentRouteData.origin.lat) && Number.isFinite(currentRouteData.origin.lon)) {
+      const origLatLng = [currentRouteData.origin.lat, currentRouteData.origin.lon];
+      boundsPoints.push(origLatLng);
+
+      // Marker Bandara Asal
+      const originMarker = L.circleMarker(origLatLng, {
+        radius: 7,
+        fillColor: "#22c55e",
+        fillOpacity: 0.95,
+        color: "#0b0f15",
+        weight: 2
+      }).bindTooltip(`🛫 ${currentRouteData.origin_display || 'Origin Airport'}`, { permanent: false, direction: "top" });
+      trailLayer.addLayer(originMarker);
+
+      // Garis putus-putus dari Bandara Asal ke Titik Terdeteksi Pertama
+      const origToAdsb = L.polyline([origLatLng, firstAdsbPoint], {
+        color: "#38bdf8",
+        weight: 2.5,
+        opacity: 0.75,
+        dashArray: "6, 6"
+      });
+      trailLayer.addLayer(origToAdsb);
+    }
+
+    // 2. ACTIVE ADS-B TRAIL (SOLID continuous, DASHED on signal loss gap)
+    if (validTrail.length > 1) {
+      for (let i = 1; i < validTrail.length; i++) {
+        const prev = validTrail[i - 1];
+        const curr = validTrail[i];
+        const p1 = [prev[0], prev[1]];
+        const p2 = [curr[0], curr[1]];
+        boundsPoints.push(p2);
+
+        // Check time gap between consecutive points (gap > 85s = signal loss / transponder off)
+        const dt = (curr[3] && prev[3]) ? Math.abs(curr[3] - prev[3]) : 0;
+        const isGap = dt > 85;
+
+        const segment = L.polyline([p1, p2], {
+          color: isGap ? "#f59e0b" : "#38bdf8",
+          weight: isGap ? 2.5 : 3.5,
+          opacity: isGap ? 0.85 : 0.95,
+          dashArray: isGap ? "5, 5" : null // SOLID while active, DASHED if gap!
+        });
+        trailLayer.addLayer(segment);
       }
-    } catch (e) {
-      console.warn("Route resolution error:", e);
+    }
+
+    // Connect last trail point to live plane marker position with SOLID line
+    if (validTrail.length > 0) {
+      const liveSegment = L.polyline([lastAdsbPoint, liveLatLng], {
+        color: "#38bdf8",
+        weight: 3.5,
+        opacity: 0.95,
+        dashArray: null // Solid live connection
+      });
+      trailLayer.addLayer(liveSegment);
+    }
+
+    // Breadcrumb dot markers on all recorded coordinates
+    validTrail.forEach(pt => {
+      const circle = L.circleMarker([pt[0], pt[1]], {
+        radius: 2.5,
+        fillColor: "#38bdf8",
+        fillOpacity: 0.9,
+        color: "#0b0f15",
+        weight: 1
+      });
+      trailLayer.addLayer(circle);
+    });
+
+    // 3. LIVE POSITION -> DESTINATION AIRPORT (🛬) (DASHED)
+    if (currentRouteData && currentRouteData.destination && Number.isFinite(currentRouteData.destination.lat) && Number.isFinite(currentRouteData.destination.lon)) {
+      const destLatLng = [currentRouteData.destination.lat, currentRouteData.destination.lon];
+      boundsPoints.push(destLatLng);
+
+      // Marker Bandara Tujuan
+      const destMarker = L.circleMarker(destLatLng, {
+        radius: 7,
+        fillColor: "#f97316",
+        fillOpacity: 0.95,
+        color: "#0b0f15",
+        weight: 2
+      }).bindTooltip(`🛬 ${currentRouteData.dest_display || 'Destination Airport'}`, { permanent: false, direction: "top" });
+      trailLayer.addLayer(destMarker);
+
+      // Garis putus-putus proyeksi rute menuju Bandara Tujuan
+      const adsbToDest = L.polyline([liveLatLng, destLatLng], {
+        color: "#c084fc",
+        weight: 2.5,
+        opacity: 0.8,
+        dashArray: "6, 6"
+      });
+      trailLayer.addLayer(adsbToDest);
+    }
+
+    // Auto-fit camera if requested or when "Track route" is toggled
+    if (autoFit && boundsPoints.length > 1) {
+      try {
+        map.fitBounds(L.latLngBounds(boundsPoints).pad(0.2));
+      } catch (err) {
+        // ignore
+      }
     }
   }
 
-  // Load and render flight trail breadcrumbs
-  async function loadFlightTrail(icao) {
-    trailLayer.clearLayers();
+  // Fetch Origin, Destination Route & ADS-B Trail in parallel
+  async function updateTargetTrajectory(flight, autoFit = false) {
+    if (!flight || flight.icao24 !== selectedIcao) return;
+    const icao = flight.icao24;
+
     try {
-      const resp = await fetch(`/api/track/${icao}`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      const trail = data.trail || [];
+      const [trailRes, routeRes] = await Promise.allSettled([
+        fetch(`/api/track/${icao}`).then(r => r.ok ? r.json() : null),
+        fetch(`/api/flight-route/${icao}`).then(r => r.ok ? r.json() : null)
+      ]);
 
-      if (trail.length > 1) {
-        const latLngs = trail.map(pt => [pt[0], pt[1]]);
-        
-        const polyline = L.polyline(latLngs, {
-          color: "#38bdf8",
-          weight: 2,
-          opacity: 0.9,
-          dashArray: "4, 6"
-        });
-        trailLayer.addLayer(polyline);
+      if (icao !== selectedIcao) return;
 
-        trail.forEach(pt => {
-          const circle = L.circleMarker([pt[0], pt[1]], {
-            radius: 2.5,
-            fillColor: "#38bdf8",
-            fillOpacity: 0.9,
-            color: "#0f1319",
-            weight: 1
-          });
-          trailLayer.addLayer(circle);
-        });
+      if (trailRes.status === "fulfilled" && trailRes.value) {
+        currentTrailData = trailRes.value.trail || [];
       }
+
+      if (routeRes.status === "fulfilled" && routeRes.value) {
+        currentRouteData = routeRes.value;
+        if (currentRouteData.origin_display) {
+          const el = document.getElementById("targetOrigin");
+          if (el) el.textContent = currentRouteData.origin_display;
+        }
+        if (currentRouteData.dest_display) {
+          const el = document.getElementById("targetDest");
+          if (el) el.textContent = currentRouteData.dest_display;
+        }
+        flight.origin = currentRouteData.origin_display;
+        flight.destination = currentRouteData.dest_display;
+        renderFlightsList();
+      }
+
+      renderCompleteTrajectory(flight, autoFit);
     } catch (e) {
-      console.error("Trail load error:", e);
+      console.warn("Trajectory resolution error:", e);
     }
   }
 
   // Deselect Target Aircraft
   function deselectTarget() {
     selectedIcao = null;
+    currentRouteData = null;
+    currentTrailData = [];
     document.getElementById("detailPanel").classList.remove("visible");
     document.querySelector(".main-viewport").classList.remove("detail-open");
     // juga clear route track jika aktif
     if (routeLineLayer) { routeLineLayer.clearLayers(); }
     isRouteTrackActive = false;
     const btnTrack = document.getElementById("btnTrackRoute");
-    if (btnTrack) btnTrack.classList.remove("active");
+    if (btnTrack) {
+      btnTrack.classList.remove("active");
+      btnTrack.textContent = "Track route";
+    }
     trailLayer.clearLayers();
     renderMarkers();
     document.querySelectorAll(".flight-card").forEach(c => c.classList.remove("active"));
@@ -1077,88 +1199,19 @@
     });
 
     // Track Route button
-    document.getElementById("btnTrackRoute").addEventListener("click", async () => {
+    document.getElementById("btnTrackRoute").addEventListener("click", () => {
       const btn = document.getElementById("btnTrackRoute");
       if (!selectedIcao) return;
 
-      if (isRouteTrackActive) {
-        // Turn off
-        isRouteTrackActive = false;
-        btn.classList.remove("active");
-        btn.textContent = "Track route";
-        if (routeLineLayer) routeLineLayer.clearLayers();
-        return;
-      }
+      const flight = allFlights.find(f => f.icao24 === selectedIcao);
+      if (!flight) return;
 
-      // Turn on — fetch route and draw line on map between origin & destination coords
-      isRouteTrackActive = true;
-      btn.classList.add("active");
-      btn.textContent = "Stop route";
+      isRouteTrackActive = !isRouteTrackActive;
+      btn.classList.toggle("active", isRouteTrackActive);
+      btn.textContent = isRouteTrackActive ? "Stop route" : "Track route";
 
-      try {
-        const resp = await fetch(`/api/flight-route/${selectedIcao}`);
-        if (!resp.ok) throw new Error("No route data");
-        const data = await resp.json();
-
-        if (!routeLineLayer) {
-          routeLineLayer = L.layerGroup().addTo(map);
-        } else {
-          routeLineLayer.clearLayers();
-        }
-
-        const points = [];
-
-        // Draw origin airport marker
-        if (data.origin && Number.isFinite(data.origin.lat) && Number.isFinite(data.origin.lon)) {
-          const originLatLng = [data.origin.lat, data.origin.lon];
-          points.push(originLatLng);
-          L.circleMarker(originLatLng, {
-            radius: 7,
-            fillColor: "#22c55e",
-            fillOpacity: 0.9,
-            color: "#0f1319",
-            weight: 2
-          }).bindTooltip(`🛫 ${data.origin_display || 'Origin'}`, { permanent: false })
-            .addTo(routeLineLayer);
-        }
-
-        // Draw destination airport marker
-        if (data.destination && Number.isFinite(data.destination.lat) && Number.isFinite(data.destination.lon)) {
-          const destLatLng = [data.destination.lat, data.destination.lon];
-          points.push(destLatLng);
-          L.circleMarker(destLatLng, {
-            radius: 7,
-            fillColor: "#f97316",
-            fillOpacity: 0.9,
-            color: "#0f1319",
-            weight: 2
-          }).bindTooltip(`🛬 ${data.dest_display || 'Destination'}`, { permanent: false })
-            .addTo(routeLineLayer);
-        }
-
-        // Draw dashed line between origin & destination
-        if (points.length === 2) {
-          L.polyline(points, {
-            color: "#38bdf8",
-            weight: 2,
-            opacity: 0.75,
-            dashArray: "8, 6"
-          }).addTo(routeLineLayer);
-
-          // Fit map to show both airports
-          map.fitBounds(L.latLngBounds(points).pad(0.3));
-        } else {
-          btn.classList.remove("active");
-          btn.textContent = "Track route";
-          isRouteTrackActive = false;
-          alert("Route data tidak tersedia untuk pesawat ini.");
-        }
-      } catch (e) {
-        console.warn("Track route error:", e);
-        btn.classList.remove("active");
-        btn.textContent = "Track route";
-        isRouteTrackActive = false;
-      }
+      // Re-render trajectory and fit camera bounds if active
+      renderCompleteTrajectory(flight, isRouteTrackActive);
     });
 
     const drawer = document.getElementById("telemetryDrawer");

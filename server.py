@@ -654,9 +654,10 @@ class MilitaryFlightService:
                 if lat is not None and lon is not None:
                     if icao not in self.trails:
                         self.trails[icao] = []
-                    self.trails[icao].append([lat, lon, alt_ft, int(now)])
-                    if len(self.trails[icao]) > 30:
-                        self.trails[icao].pop(0)
+                    if not self.trails[icao] or (self.trails[icao][-1][0] != lat or self.trails[icao][-1][1] != lon):
+                        self.trails[icao].append([lat, lon, alt_ft, int(now)])
+                        if len(self.trails[icao]) > 120:
+                            self.trails[icao].pop(0)
 
             elif include_commercial:
                 # Try to enrich from full aircraft DB first
@@ -728,6 +729,15 @@ class MilitaryFlightService:
                 }
                 com_flights.append(flight_obj)
                 com_cat_counts[category_final] = com_cat_counts.get(category_final, 0) + 1
+
+                # Update flight trails for commercial
+                if lat is not None and lon is not None:
+                    if icao not in self.trails:
+                        self.trails[icao] = []
+                    if not self.trails[icao] or (self.trails[icao][-1][0] != lat or self.trails[icao][-1][1] != lon):
+                        self.trails[icao].append([lat, lon, alt_ft, int(now)])
+                        if len(self.trails[icao]) > 120:
+                            self.trails[icao].pop(0)
 
         return mil_flights, com_flights, country_counts, cat_counts, com_cat_counts, emergency_count, fir_indo_count
 
