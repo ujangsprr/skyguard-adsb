@@ -15,6 +15,7 @@ import sys
 import gzip
 import json
 import time
+import datetime
 import math
 import ssl
 import urllib.request
@@ -36,7 +37,27 @@ FIR_GEOJSON_FILE = os.path.join(BASE_DIR, "fir_indonesia.geojson")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 PORT = 8080
-CACHE_TTL_SECONDS = 15
+DAILY_QUOTA_LIMIT = 4000
+
+# WIB Operational Schedule (UTC+7)
+# 08:00 - 16:30 WIB: Ultra Real-Time (10s) -> 3,060 req / 8.5 jam
+# 16:30 - 08:00 WIB: Standby Mode (70s) -> 797 req / 15.5 jam
+# Total: ~3,857 req/hari (Strictly safe below 4,000 quota)
+WIB_TZ = datetime.timezone(datetime.timedelta(hours=7))
+PEAK_START_MINUTE = 8 * 60        # 08:00 WIB (480)
+PEAK_END_MINUTE = 16 * 60 + 30    # 16:30 WIB (990)
+PEAK_INTERVAL_SECONDS = 10        # 10 detik di jam operasional
+OFFPEAK_INTERVAL_SECONDS = 70     # 70 detik di luar jam operasional
+CACHE_TTL_SECONDS = PEAK_INTERVAL_SECONDS
+
+def get_current_poll_schedule():
+    """Calculate active poll interval and schedule mode according to WIB hours."""
+    now_wib = datetime.datetime.now(WIB_TZ)
+    cur_minute = now_wib.hour * 60 + now_wib.minute
+    is_peak = (PEAK_START_MINUTE <= cur_minute < PEAK_END_MINUTE)
+    interval = PEAK_INTERVAL_SECONDS if is_peak else OFFPEAK_INTERVAL_SECONDS
+    mode = "PEAK_WIB" if is_peak else "OFFPEAK_WIB"
+    return interval, mode, now_wib.strftime("%H:%M:%S WIB")
 
 TACTICAL_CALLSIGNS = (
     "RCH", "REACH", "RRR", "FAF", "GAF", "BAF", "IAM", "ASY", "CFC", 
@@ -477,6 +498,10 @@ class MilitaryFlightService:
         self.trails = {}  # icao24 -> list of [lat, lon, alt_ft, timestamp]
         self.route_cache = {}  # icao24 -> route info dict
         self.photo_cache = {}  # icao24 -> aircraft photo dict
+        self.daily_requests_count = 0
+        self.quota_day = time.strftime("%Y-%m-%d", time.gmtime())
+        self.poller_running = False
+        self.poller_thread = None
         self.load_military_db()
         self.load_full_aircraft_db()
 
@@ -704,10 +729,26 @@ class MilitaryFlightService:
         return mil_flights, com_flights, country_counts, cat_counts, com_cat_counts, emergency_count, fir_indo_count
 
 
-    def fetch_live_flights(self, force=False):
+    def _check_and_increment_quota(self):
+        """Track daily OpenSky API requests against 4,000 requests/day limit."""
+        current_day = time.strftime("%Y-%m-%d", time.gmtime())
+        if current_day != self.quota_day:
+            self.quota_day = current_day
+            self.daily_requests_count = 0
+            print(f"[QUOTA] Reset daily quota counter for new UTC day: {current_day}")
+
+        if self.daily_requests_count >= DAILY_QUOTA_LIMIT - 5:
+            print(f"[QUOTA ALERT] Daily quota near maximum ({self.daily_requests_count}/{DAILY_QUOTA_LIMIT}). Throttling API requests.")
+            return False
+
+        self.daily_requests_count += 1
+        return True
+
+    def fetch_from_opensky(self):
+        """Centralized Ingestor: Called strictly by background poller to ensure 1-door access."""
         with self.lock:
             now = time.time()
-            if not force and (now - self.last_fetch_time) < CACHE_TTL_SECONDS:
+            if not self._check_and_increment_quota():
                 return self.cached_flights, self.cached_stats
 
             token = self.auth.get_token()
@@ -791,6 +832,21 @@ class MilitaryFlightService:
                 mil_det_total, mil_det_crit, mil_det_warn, mil_det_breakdown, mil_alerts = summarize_detections(mil_flights)
                 all_det_total, all_det_crit, all_det_warn, all_det_breakdown, all_alerts = summarize_detections(all_flights)
 
+                interval_s, mode_tag, wib_str = get_current_poll_schedule()
+
+                # Quota stats
+                quota_info = {
+                    "daily_limit": DAILY_QUOTA_LIMIT,
+                    "used_today": self.daily_requests_count,
+                    "remaining": max(0, DAILY_QUOTA_LIMIT - self.daily_requests_count),
+                    "poll_interval_s": interval_s,
+                    "schedule_mode": mode_tag,
+                    "wib_time": wib_str,
+                    "peak_window": "08:00 - 16:30 WIB (10s)",
+                    "offpeak_window": "16:30 - 08:00 WIB (70s)",
+                    "quota_day": self.quota_day
+                }
+
                 # Military stats
                 stats = {
                     "total_military": len(mil_flights),
@@ -808,7 +864,8 @@ class MilitaryFlightService:
                     "server_time": server_time,
                     "fetch_duration_s": round(time.time() - t0, 2),
                     "cached_at": int(now),
-                    "next_update": int(now) + CACHE_TTL_SECONDS
+                    "next_update": int(now) + interval_s,
+                    "quota": quota_info
                 }
 
                 # All flights stats
@@ -835,7 +892,8 @@ class MilitaryFlightService:
                     "server_time": server_time,
                     "fetch_duration_s": round(time.time() - t0, 2),
                     "cached_at": int(now),
-                    "next_update": int(now) + CACHE_TTL_SECONDS
+                    "next_update": int(now) + interval_s,
+                    "quota": quota_info
                 }
 
                 self.cached_flights = mil_flights
@@ -845,69 +903,106 @@ class MilitaryFlightService:
                 self.last_fetch_time = now
 
                 # Clean up old trails
-                active_icaos = {f["icao24"].lower() for f in mil_flights}
+                active_icaos = {f["icao24"].lower() for f in all_flights}
                 for old_icao in list(self.trails.keys()):
                     if old_icao not in active_icaos:
                         del self.trails[old_icao]
 
-                print(f"[API] Updated: {len(mil_flights)} military + {len(com_flights)} commercial flights (FIR Indo: {sum(1 for f in all_flights if f['in_fir_indonesia'])}).")
+                print(f"[INGESTOR 1-PINTU] Updated: {len(mil_flights)} mil + {len(com_flights)} com | Mode: {mode_tag} ({interval_s}s) | Quota: {self.daily_requests_count}/{DAILY_QUOTA_LIMIT} | WIB: {wib_str}")
 
                 return self.cached_flights, self.cached_stats
 
             except Exception as e:
                 # Set backoff so server doesn't freeze or hammer OpenSky on consecutive polls
-                self.last_fetch_time = now - CACHE_TTL_SECONDS + 20
+                self.last_fetch_time = now - CACHE_TTL_SECONDS + 15
                 print(f"[API WARN] OpenSky fetch timeout/error ({e}). Serving cached data.")
                 return self.cached_flights, self.cached_stats
 
+    def fetch_live_flights(self, force=False):
+        """Web client endpoint: strictly reads RAM cache with 0 network latency."""
+        if not self.cached_flights and self.last_fetch_time == 0:
+            return self.fetch_from_opensky()
+        return self.cached_flights, self.cached_stats
+
     def fetch_all_flights(self, force=False):
-        """Returns all flights (military + commercial)"""
-        self.fetch_live_flights(force=force)
+        """Web client endpoint: strictly reads RAM cache with 0 network latency."""
+        if not self.cached_all_flights and self.last_fetch_time == 0:
+            return self.fetch_from_opensky()
         return self.cached_all_flights, self.cached_all_stats
 
+    def start_background_poller(self):
+        """Starts the dedicated 1-door background worker thread."""
+        if self.poller_running:
+            return
+        self.poller_running = True
+        self.poller_thread = threading.Thread(target=self._background_poller_loop, name="SkyGuard-Poller", daemon=True)
+        self.poller_thread.start()
+        cur_int, cur_mode, cur_wib = get_current_poll_schedule()
+        print(f"[INGESTOR] Centralized 1-pintu background poller started ({cur_mode}: {cur_int}s, WIB: {cur_wib}).")
+
+    def _background_poller_loop(self):
+        # Initial cold-start fetch
+        try:
+            self.fetch_from_opensky()
+        except Exception as e:
+            print(f"[INGESTOR ERROR] Initial cold-start fetch failed: {e}")
+
+        while self.poller_running:
+            try:
+                now = time.time()
+                elapsed = now - self.last_fetch_time
+                active_interval, _, _ = get_current_poll_schedule()
+                if elapsed >= active_interval:
+                    self.fetch_from_opensky()
+            except Exception as e:
+                print(f"[INGESTOR ERROR] Background loop error: {e}")
+            time.sleep(1)
+
     def fetch_route_for_aircraft(self, icao):
-        """Fetch historical flight schedule/airports from OpenSky for origin and destination"""
+        """Fetch historical flight schedule/airports for origin and destination with quota protection"""
         icao_clean = icao.lower().strip()
         now = int(time.time())
 
-        # Check cache (10 min TTL for routes)
+        # Check cache (2 hours TTL for routes to conserve quota)
         cached = self.route_cache.get(icao_clean)
-        if cached and (now - cached.get("cached_time", 0)) < 600:
+        if cached and (now - cached.get("cached_time", 0)) < 7200:
             return cached
-
-        token = self.auth.get_token()
-        headers = {"User-Agent": "SkyGuard-Military-Radar/1.0"}
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
-
-        begin = now - 86400  # past 24h
-        url = f"https://opensky-network.org/api/flights/aircraft?icao24={icao_clean}&begin={begin}&end={now}"
-        req = urllib.request.Request(url, headers=headers)
 
         origin_airport = None
         dest_airport = None
         origin_display = "Tactical / Unknown Origin"
         dest_display = "Tactical Sortie / In Flight"
 
-        try:
-            with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
-                flights_history = json.loads(resp.read().decode("utf-8"))
-                if flights_history:
-                    # Pick latest flight
-                    latest = flights_history[-1]
-                    dep_code = latest.get("estDepartureAirport")
-                    arr_code = latest.get("estArrivalAirport")
+        # Check quota headroom before querying OpenSky for routes
+        if self.daily_requests_count < (DAILY_QUOTA_LIMIT - 50) and self._check_and_increment_quota():
+            token = self.auth.get_token()
+            headers = {"User-Agent": "SkyGuard-Military-Radar/1.0"}
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
 
-                    if dep_code:
-                        origin_airport = self.airport_service.get_airport(dep_code)
-                        origin_display = f"[{dep_code}] {origin_airport['name']} ({origin_airport['city'] or origin_airport['country']})"
-                    if arr_code:
-                        dest_airport = self.airport_service.get_airport(arr_code)
-                        dest_display = f"[{arr_code}] {dest_airport['name']} ({dest_airport['city'] or dest_airport['country']})"
-        except Exception as e:
-            print(f"[ROUTE WARN] OpenSky flight history lookup failed for {icao_clean}: {e}")
+            begin = now - 86400  # past 24h
+            url = f"https://opensky-network.org/api/flights/aircraft?icao24={icao_clean}&begin={begin}&end={now}"
+            req = urllib.request.Request(url, headers=headers)
 
-        # If origin still unknown, estimate from initial trail point
+            try:
+                with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
+                    flights_history = json.loads(resp.read().decode("utf-8"))
+                    if flights_history:
+                        # Pick latest flight
+                        latest = flights_history[-1]
+                        dep_code = latest.get("estDepartureAirport")
+                        arr_code = latest.get("estArrivalAirport")
+
+                        if dep_code:
+                            origin_airport = self.airport_service.get_airport(dep_code)
+                            origin_display = f"[{dep_code}] {origin_airport['name']} ({origin_airport['city'] or origin_airport['country']})"
+                        if arr_code:
+                            dest_airport = self.airport_service.get_airport(arr_code)
+                            dest_display = f"[{arr_code}] {dest_airport['name']} ({dest_airport['city'] or dest_airport['country']})"
+            except Exception as e:
+                print(f"[ROUTE WARN] OpenSky flight history lookup failed for {icao_clean}: {e}")
+
+        # If origin still unknown, estimate from initial trail point using local 29,311 airport DB
         trail = self.trails.get(icao_clean, [])
         if not origin_airport and trail:
             init_lat, init_lon = trail[0][0], trail[0][1]
@@ -929,8 +1024,13 @@ class MilitaryFlightService:
 
         self.route_cache[icao_clean] = route_result
 
-        # Update in cached_flights list if present
+        # Update in cached_flights and cached_all_flights if present
         for f in self.cached_flights:
+            if f["icao24"].lower() == icao_clean:
+                f["origin"] = origin_display
+                f["destination"] = dest_display
+                break
+        for f in self.cached_all_flights:
             if f["icao24"].lower() == icao_clean:
                 f["origin"] = origin_display
                 f["destination"] = dest_display
@@ -1169,6 +1269,7 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
             return
 
         elif path == "/api/status":
+            interval_s, mode_tag, wib_str = get_current_poll_schedule()
             self._send_json({
                 "status": "online",
                 "client_id": auth.client_id,
@@ -1177,7 +1278,18 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
                 "cached_flights_count": len(flight_service.cached_flights),
                 "military_db_size": len(flight_service.mil_db),
                 "airports_db_size": len(airport_service.airports),
-                "fir_loaded": len(fir_checker.fir_features) > 0
+                "fir_loaded": len(fir_checker.fir_features) > 0,
+                "ingestor": {
+                    "mode": "1-door-centralized",
+                    "schedule_mode": mode_tag,
+                    "poll_interval_s": interval_s,
+                    "wib_time": wib_str,
+                    "schedule": "08:00 - 16:30 WIB (10s Peak) | 16:30 - 08:00 WIB (70s Standby)",
+                    "daily_quota_limit": DAILY_QUOTA_LIMIT,
+                    "daily_requests_used": flight_service.daily_requests_count,
+                    "daily_requests_remaining": max(0, DAILY_QUOTA_LIMIT - flight_service.daily_requests_count),
+                    "quota_day_utc": flight_service.quota_day
+                }
             })
             return
 
@@ -1190,8 +1302,11 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        now = time.time()
         if self.path == "/api/refresh":
-            flights, stats = flight_service.fetch_live_flights(force=True)
+            if (now - flight_service.last_fetch_time) >= 10:
+                flight_service.fetch_from_opensky()
+            flights, stats = flight_service.fetch_live_flights()
             self._send_json({
                 "status": "refreshed",
                 "stats": stats,
@@ -1199,7 +1314,9 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
             })
             return
         elif self.path == "/api/refresh-all":
-            flights, stats = flight_service.fetch_all_flights(force=True)
+            if (now - flight_service.last_fetch_time) >= 10:
+                flight_service.fetch_from_opensky()
+            flights, stats = flight_service.fetch_all_flights()
             self._send_json({
                 "status": "refreshed",
                 "stats": stats,
@@ -1253,5 +1370,6 @@ def run_server():
         httpd.server_close()
 
 if __name__ == "__main__":
-    flight_service.fetch_live_flights(force=True)
+    # Start 1-door centralized background poller (22s interval, max 4,000 req/day quota)
+    flight_service.start_background_poller()
     run_server()

@@ -61,8 +61,8 @@
   let isAudioEnabled = true;
   let countdownTimer = null;
   let mapLayoutTimer = null;
-  let secondsRemaining = 15;
-  const pollIntervalSeconds = 15;
+  let secondsRemaining = 10;
+  let pollIntervalSeconds = 10;
 
   // Flight display mode: 'all' | 'military' | 'commercial'
   let flightMode = 'military';
@@ -333,6 +333,16 @@
         }
       } else {
         if (emergencyBanner) emergencyBanner.style.display = "none";
+      }
+
+      if (stats && stats.quota && stats.quota.poll_interval_s) {
+        pollIntervalSeconds = stats.quota.poll_interval_s;
+        const cdBox = document.getElementById("countdownBox");
+        if (cdBox) {
+          const isPeak = stats.quota.schedule_mode === "PEAK_WIB";
+          const label = isPeak ? "⚡ PEAK (08:00-16:30 WIB: 10s)" : "🌙 STANDBY (16:30-08:00 WIB: 70s)";
+          cdBox.title = `Next radar scan: ${pollIntervalSeconds}s [${label}]`;
+        }
       }
 
       secondsRemaining = pollIntervalSeconds;

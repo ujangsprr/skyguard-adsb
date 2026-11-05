@@ -23,7 +23,11 @@ SkyGuard Sentinel menyediakan REST API real-time berlatensi rendah untuk pemanta
 
 Saat ini endpoint publik tidak memerlukan API Key jika diakses melalui jaringan lokal atau gateway server:
 * **Autentikasi:** Bebas (No Auth required).
-* **Cache TTL:** 15 detik (data transponder diperbarui berkala setiap 15 detik untuk mematuhi rate-limit OpenSky).
+* **Centralized 1-Pintu Ingestor & Dynamic Schedule:**
+  - **Jam Sibuk Operasional (08:00 - 16:30 WIB):** Update ultra real-time **setiap 10 detik** (~3.060 requests / 8,5 jam).
+  - **Di Luar Jam Operasional (16:30 - 08:00 WIB):** Update standby **setiap 70 detik** (~797 requests / 15,5 jam).
+  - **Total Harian:** ~3.857 requests/hari (dijamin aman di bawah batas kuota 4.000 requests/hari OpenSky).
+  - Semua client web membaca instan dari RAM server tanpa memotong kuota.
 * **Metode HTTP:** `GET` (query data) dan `POST` (force scan/refresh).
 
 ---
@@ -243,7 +247,7 @@ Pemeriksaan kesehatan (*healthcheck*) server dan status autentikasi token OpenSk
 ---
 
 ### 3.9 `POST /api/refresh-all` atau `POST /api/refresh`
-Memaksa pemindaian ulang (*force cache refresh*) seketika ke satelit OpenSky tanpa menunggu interval 15 detik.
+Memaksa pemindaian ulang (*cache refresh*) dari data radar terbaru tanpa menunggu interval 22 detik.
 
 ---
 
