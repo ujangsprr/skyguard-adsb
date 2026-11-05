@@ -247,7 +247,44 @@ Pemeriksaan kesehatan (*healthcheck*) server dan status autentikasi token OpenSk
 ---
 
 ### 3.9 `POST /api/refresh-all` atau `POST /api/refresh`
-Memaksa pemindaian ulang (*cache refresh*) dari data radar terbaru tanpa menunggu interval 22 detik.
+Memaksa pemindaian ulang (*cache refresh*) dari data radar terbaru tanpa menunggu interval dinamis.
+
+---
+
+### 3.10 `GET /api/history/alerts`
+Mengambil riwayat log insiden taktis dan darurat (disimpan permanen di database SQLite `skyguard.db`).
+
+#### Query Parameters:
+* `limit` (opsional, default: 50) — Jumlah baris riwayat yang ingin diambil.
+* `severity` (opsional) — Filter tingkat keparahan (`critical`, `warning`).
+* `icao` (opsional) — Filter kode hex ICAO 24-bit pesawat.
+
+#### Contoh Request:
+```bash
+curl -s "http://localhost:8080/api/history/alerts?limit=10&severity=critical"
+```
+
+---
+
+### 3.11 `GET /api/history/stats`
+Mengambil statistik agregat seluruh insiden dan pelanggaran FIR Indonesia yang tersimpan di SQLite.
+
+#### Contoh Request:
+```bash
+curl -s "http://localhost:8080/api/history/stats"
+```
+
+---
+
+### 3.12 `GET /api/custom-aircraft` & `POST /api/custom-aircraft`
+Mengelola daftar pantau khusus (*watchlist*) dan catatan intelijen target tertentu.
+
+#### Contoh Simpan Catatan (POST):
+```bash
+curl -X POST "http://localhost:8080/api/custom-aircraft" \
+  -H "Content-Type: application/json" \
+  -d '{"icao24": "7500DA", "priority": "high", "tag": "SURVEILLANCE", "notes": "Target pemantauan rutin perbatasan"}'
+```
 
 ---
 

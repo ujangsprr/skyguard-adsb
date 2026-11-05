@@ -23,6 +23,7 @@ import urllib.parse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 import threading
+from database import DatabaseManager
 
 # Disable SSL verification globally
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -33,6 +34,7 @@ CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
 MILITARY_DB_FILE = os.path.join(BASE_DIR, "data", "military_db.json.gz")
 AIRCRAFT_DB_FILE = os.path.join(BASE_DIR, "data", "aircraft_db.json.gz")
 AIRPORTS_DB_FILE = os.path.join(BASE_DIR, "data", "airports.json.gz")
+SQLITE_DB_FILE = os.path.join(BASE_DIR, "data", "skyguard.db")
 FIR_GEOJSON_FILE = os.path.join(BASE_DIR, "fir_indonesia.geojson")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
@@ -483,10 +485,11 @@ class AirportService:
         return 2 * R * math.asin(math.sqrt(a))
 
 class MilitaryFlightService:
-    def __init__(self, auth: OpenSkyAuth, fir_checker: FIRChecker, airport_service: AirportService):
+    def __init__(self, auth: OpenSkyAuth, fir_checker: FIRChecker, airport_service: AirportService, db: DatabaseManager = None):
         self.auth = auth
         self.fir_checker = fir_checker
         self.airport_service = airport_service
+        self.db = db
         self.mil_db = {}
         self.full_db = {}   # all aircraft (military + civilian) from aircraft_db.json.gz
         self.cached_flights = []       # military only
@@ -902,6 +905,11 @@ class MilitaryFlightService:
                 self.cached_all_stats = all_stats
                 self.last_fetch_time = now
 
+                # Persist tactical & emergency alerts into SQLite (debounced)
+                if self.db:
+                    for a in all_alerts:
+                        self.db.log_alert(a)
+
                 # Clean up old trails
                 active_icaos = {f["icao24"].lower() for f in all_flights}
                 for old_icao in list(self.trails.keys()):
@@ -963,10 +971,17 @@ class MilitaryFlightService:
         icao_clean = icao.lower().strip()
         now = int(time.time())
 
-        # Check cache (2 hours TTL for routes to conserve quota)
+        # 1. Check in-memory cache (RAM)
         cached = self.route_cache.get(icao_clean)
         if cached and (now - cached.get("cached_time", 0)) < 7200:
             return cached
+
+        # 2. Check persistent SQLite cache (preserves route across server restarts)
+        if self.db:
+            db_route = self.db.get_route(icao_clean)
+            if db_route and (now - db_route.get("cached_time", 0)) < 86400:
+                self.route_cache[icao_clean] = db_route
+                return db_route
 
         origin_airport = None
         dest_airport = None
@@ -1023,6 +1038,8 @@ class MilitaryFlightService:
         }
 
         self.route_cache[icao_clean] = route_result
+        if self.db:
+            self.db.save_route(icao_clean, route_result)
 
         # Update in cached_flights and cached_all_flights if present
         for f in self.cached_flights:
@@ -1289,8 +1306,34 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
                     "daily_requests_used": flight_service.daily_requests_count,
                     "daily_requests_remaining": max(0, DAILY_QUOTA_LIMIT - flight_service.daily_requests_count),
                     "quota_day_utc": flight_service.quota_day
+                },
+                "sqlite": {
+                    "enabled": True,
+                    "db_file": "data/skyguard.db",
+                    "stats": db_manager.get_alerts_stats()
                 }
             })
+            return
+
+        elif path == "/api/history/alerts":
+            query_params = urllib.parse.parse_qs(parsed.query)
+            limit = int(query_params.get("limit", ["50"])[0])
+            severity = query_params.get("severity", [None])[0]
+            icao = query_params.get("icao", [None])[0]
+            alerts = db_manager.get_recent_alerts(limit=limit, severity=severity, icao24=icao)
+            self._send_json({"status": "success", "count": len(alerts), "alerts": alerts})
+            return
+
+        elif path == "/api/history/stats":
+            hstats = db_manager.get_alerts_stats()
+            self._send_json({"status": "success", "stats": hstats})
+            return
+
+        elif path == "/api/custom-aircraft":
+            query_params = urllib.parse.parse_qs(parsed.query)
+            icao = query_params.get("icao", [None])[0]
+            custom = db_manager.get_custom_aircraft(icao24=icao)
+            self._send_json({"status": "success", "data": custom})
             return
 
         elif path == "/favicon.ico":
@@ -1323,6 +1366,20 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
                 "flights": flights
             })
             return
+        elif self.path == "/api/custom-aircraft":
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length)
+                payload = json.loads(body.decode("utf-8"))
+                icao = payload.get("icao24", "")
+                priority = payload.get("priority", "normal")
+                tag = payload.get("tag", "")
+                notes = payload.get("notes", "")
+                ok = db_manager.set_custom_aircraft(icao, priority=priority, tag=tag, notes=notes)
+                self._send_json({"status": "success" if ok else "error", "icao24": icao})
+            except Exception as e:
+                self._send_json({"status": "error", "message": str(e)}, 400)
+            return
         self.send_error(404, "Endpoint not found")
 
     def _send_json(self, data, status_code=200):
@@ -1351,10 +1408,11 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
         if args and isinstance(args[0], str) and "/api/" in args[0]:
             sys.stderr.write(f"[HTTP] {args[0]} - {args[1] if len(args) > 1 else ''}\n")
 
+db_manager = DatabaseManager(SQLITE_DB_FILE)
 auth = OpenSkyAuth(CREDENTIALS_FILE)
 fir_checker = FIRChecker(FIR_GEOJSON_FILE)
 airport_service = AirportService(AIRPORTS_DB_FILE)
-flight_service = MilitaryFlightService(auth, fir_checker, airport_service)
+flight_service = MilitaryFlightService(auth, fir_checker, airport_service, db=db_manager)
 
 def run_server():
     server_address = ("", PORT)

@@ -2,6 +2,15 @@
 credentials.json
 **/credentials.json
 
+# SQLite Persistent Database & WAL Files (Preserved on VPS re-deploy)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/*.db
+data/*.db-*
+**/skyguard.db*
+
 # Local Extra Packages
 api_package/
 opensky_military_api/
