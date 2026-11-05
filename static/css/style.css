@@ -1145,6 +1145,43 @@ svg:focus,
   will-change: transform;
 }
 
+/* ================= Helicopter & Drone Animated Rotors ================= */
+@keyframes spinRotorCW {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes spinRotorCCW {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+.spinning-rotor-main {
+  transform-box: view-box;
+  transform-origin: 12px 10.5px;
+  animation: spinRotorCW 0.22s linear infinite;
+  will-change: transform;
+}
+
+.spinning-tail-rotor {
+  transform-box: view-box;
+  transform-origin: 14.8px 21.5px;
+  animation: spinRotorCW 0.14s linear infinite;
+  will-change: transform;
+}
+
+.spinning-drone-rotor-cw {
+  transform-box: view-box;
+  animation: spinRotorCW 0.18s linear infinite;
+  will-change: transform;
+}
+
+.spinning-drone-rotor-ccw {
+  transform-box: view-box;
+  animation: spinRotorCCW 0.18s linear infinite;
+  will-change: transform;
+}
+
 /* Callsign label badge — hidden by default, shown ONLY on hover or when selected */
 .marker-callsign-badge {
   position: absolute;

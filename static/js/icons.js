@@ -65,6 +65,90 @@ const AircraftIcons = (() => {
   }
 
   /**
+   * Specialized animated SVG generators for Helicopter & Drone
+   */
+  function getHelicopterSvgInner(color, strokeColor, strokeWidth, opacity) {
+    return `
+      <!-- Helicopter Landing Skids -->
+      <line x1="8" y1="7.2" x2="8" y2="13.8" stroke="${strokeColor}" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="16" y1="7.2" x2="16" y2="13.8" stroke="${strokeColor}" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="8" y1="9.2" x2="10.5" y2="9.2" stroke="${strokeColor}" stroke-width="1.0"/>
+      <line x1="13.5" y1="9.2" x2="16" y2="9.2" stroke="${strokeColor}" stroke-width="1.0"/>
+      <line x1="8" y1="12.2" x2="10.5" y2="12.2" stroke="${strokeColor}" stroke-width="1.0"/>
+      <line x1="13.5" y1="12.2" x2="16" y2="12.2" stroke="${strokeColor}" stroke-width="1.0"/>
+
+      <!-- Fuselage & Tail Boom -->
+      <path d="M 12 4.2 C 13.6 4.2 14.6 5.8 14.6 8.5 L 14.3 13.0 C 14.1 14.2 13.3 15.0 12.8 15.8 L 12.6 21.6 L 14.8 21.0 L 14.8 22.0 L 12.6 22.5 L 11.4 22.5 L 11.4 15.8 C 10.9 15.0 10.1 14.2 9.9 13.0 L 9.6 8.5 C 9.6 5.8 10.6 4.2 12 4.2 Z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}"/>
+
+      <!-- Tail Rotor (Animated Spin) -->
+      <g class="spinning-tail-rotor" style="transform-origin: 14.8px 21.5px;">
+        <animateTransform attributeName="transform" type="rotate" from="0 14.8 21.5" to="360 14.8 21.5" dur="0.14s" repeatCount="indefinite"/>
+        <line x1="14.8" y1="19.2" x2="14.8" y2="23.8" stroke="${color}" stroke-width="1.3" stroke-linecap="round"/>
+      </g>
+
+      <!-- Rotor Disc Arc Guide (High-speed blur effect) -->
+      <circle cx="12" cy="10.5" r="9.2" fill="none" stroke="${color}" stroke-width="0.75" stroke-dasharray="2, 3" opacity="0.45"/>
+
+      <!-- Main Rotor Blades (Animated Spin) -->
+      <g class="spinning-rotor-main" style="transform-origin: 12px 10.5px;">
+        <animateTransform attributeName="transform" type="rotate" from="0 12 10.5" to="360 12 10.5" dur="0.22s" repeatCount="indefinite"/>
+        <line x1="12" y1="1.3" x2="12" y2="19.7" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="2.8" y1="10.5" x2="21.2" y2="10.5" stroke="${color}" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="12" cy="10.5" r="1.6" fill="${strokeColor}"/>
+      </g>
+    `;
+  }
+
+  function getDroneSvgInner(color, strokeColor, strokeWidth, opacity) {
+    return `
+      <!-- 4 Diagonal Carbon Arms -->
+      <line x1="12" y1="12" x2="5.5" y2="5.5" stroke="${strokeColor}" stroke-width="2.0" stroke-linecap="round"/>
+      <line x1="12" y1="12" x2="18.5" y2="5.5" stroke="${strokeColor}" stroke-width="2.0" stroke-linecap="round"/>
+      <line x1="12" y1="12" x2="18.5" y2="18.5" stroke="${strokeColor}" stroke-width="2.0" stroke-linecap="round"/>
+      <line x1="12" y1="12" x2="5.5" y2="18.5" stroke="${strokeColor}" stroke-width="2.0" stroke-linecap="round"/>
+
+      <line x1="12" y1="12" x2="5.5" y2="5.5" stroke="${color}" stroke-width="1.0" stroke-linecap="round"/>
+      <line x1="12" y1="12" x2="18.5" y2="5.5" stroke="${color}" stroke-width="1.0" stroke-linecap="round"/>
+      <line x1="12" y1="12" x2="18.5" y2="18.5" stroke="${color}" stroke-width="1.0" stroke-linecap="round"/>
+      <line x1="12" y1="12" x2="5.5" y2="18.5" stroke="${color}" stroke-width="1.0" stroke-linecap="round"/>
+
+      <!-- Center Avionics Pod -->
+      <path d="M 10 9 C 10 8.5 10.5 8 11 8 L 13 8 C 13.5 8 14 8.5 14 9 L 14.5 14 C 14.5 14.8 13.8 15.5 13 15.5 L 11 15.5 C 10.2 15.5 9.5 14.8 9.5 14 Z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}"/>
+
+      <!-- Forward Heading Arrow / Camera Sensor -->
+      <polygon points="12,4.8 13.6,7.5 10.4,7.5" fill="${color}" stroke="${strokeColor}" stroke-width="0.5"/>
+
+      <!-- Rotor Disc Circles -->
+      <circle cx="5.5" cy="5.5" r="3.5" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="1.5, 2" opacity="0.45"/>
+      <circle cx="18.5" cy="5.5" r="3.5" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="1.5, 2" opacity="0.45"/>
+      <circle cx="18.5" cy="18.5" r="3.5" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="1.5, 2" opacity="0.45"/>
+      <circle cx="5.5" cy="18.5" r="3.5" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="1.5, 2" opacity="0.45"/>
+
+      <!-- 4 Spinning Propellers (Counter-Rotating CW / CCW) -->
+      <g class="spinning-drone-rotor-cw" style="transform-origin: 5.5px 5.5px;">
+        <animateTransform attributeName="transform" type="rotate" from="0 5.5 5.5" to="360 5.5 5.5" dur="0.18s" repeatCount="indefinite"/>
+        <line x1="2.5" y1="5.5" x2="8.5" y2="5.5" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="5.5" cy="5.5" r="1.0" fill="${strokeColor}"/>
+      </g>
+      <g class="spinning-drone-rotor-ccw" style="transform-origin: 18.5px 5.5px;">
+        <animateTransform attributeName="transform" type="rotate" from="0 18.5 5.5" to="-360 18.5 5.5" dur="0.18s" repeatCount="indefinite"/>
+        <line x1="15.5" y1="5.5" x2="21.5" y2="5.5" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="18.5" cy="5.5" r="1.0" fill="${strokeColor}"/>
+      </g>
+      <g class="spinning-drone-rotor-cw" style="transform-origin: 18.5px 18.5px;">
+        <animateTransform attributeName="transform" type="rotate" from="0 18.5 18.5" to="360 18.5 18.5" dur="0.18s" repeatCount="indefinite"/>
+        <line x1="15.5" y1="18.5" x2="21.5" y2="18.5" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="18.5" cy="18.5" r="1.0" fill="${strokeColor}"/>
+      </g>
+      <g class="spinning-drone-rotor-ccw" style="transform-origin: 5.5px 18.5px;">
+        <animateTransform attributeName="transform" type="rotate" from="0 5.5 18.5" to="-360 5.5 18.5" dur="0.18s" repeatCount="indefinite"/>
+        <line x1="2.5" y1="18.5" x2="8.5" y2="18.5" stroke="${color}" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="5.5" cy="18.5" r="1.0" fill="${strokeColor}"/>
+      </g>
+    `;
+  }
+
+  /**
    * Create Leaflet DivIcon with heading rotation
    */
   function createMarkerIcon(flight, isSelected = false) {
@@ -89,10 +173,12 @@ const AircraftIcons = (() => {
     // Icon size varies by category importance (calibrated for high-res silhouette readability)
     const sizeMap = {
       heavy: 30, airline: 26, cargo_commercial: 28, charter: 25,
-      turboprop: 23, business_jet: 24, light_aircraft: 20, helicopter: 23,
+      turboprop: 24, business_jet: 24, light_aircraft: 20,
+      helicopter: 26,
+      drone: 26,
       general_aviation: 21,
       fighter: 25, bomber: 28, transport: 28, tanker: 28,
-      recon: 25, trainer: 23, drone: 24, military_general: 25
+      recon: 25, trainer: 23, military_general: 25
     };
     const size = isSelected ? 36 : (sizeMap[cat] || 25);
 
@@ -138,11 +224,20 @@ const AircraftIcons = (() => {
       ? `military-marker mil-${cat.replace(/_/g, '-')}`
       : `commercial-marker cat-${cat.replace(/_/g, '-')}`;
 
+    let iconInnerSvg = "";
+    if (cat === "helicopter") {
+      iconInnerSvg = getHelicopterSvgInner(color, strokeColor, strokeWidth, opacity);
+    } else if (cat === "drone") {
+      iconInnerSvg = getDroneSvgInner(color, strokeColor, strokeWidth, opacity);
+    } else {
+      iconInnerSvg = `<path d="${path}" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}"/>`;
+    }
+
     const svgHtml = `
       <div class="radar-marker-container ${markerClass} ${hasCritical ? 'is-critical-marker' : ''} ${isSelected ? 'is-selected' : ''}" style="width:${size}px; height:${size}px;">
         <svg viewBox="0 0 24 24" class="radar-plane-svg" style="transform:rotate(${heading}deg); width:100%; height:100%; ${glowFilter}">
           ${ringSvg}
-          <path d="${path}" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" opacity="${opacity}"/>
+          ${iconInnerSvg}
         </svg>
         ${flight.callsign && flight.callsign !== "NO CALL"
           ? `<div class="marker-callsign-badge ${flight.is_military ? '' : 'commercial-badge'} ${hasCritical ? 'emergency-badge' : ''}">${flight.callsign}</div>`
