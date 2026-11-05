@@ -294,3 +294,4 @@ class DatabaseManager:
             """, (icao, priority, tag, notes, now, now))
             conn.commit()
             return True
+

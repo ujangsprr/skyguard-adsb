@@ -859,6 +859,28 @@
         </li>
       </ul>
 
+      <div class="nav-label">Intelligence &amp; Database (SQLite)</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a href="#ep-custom-aircraft">
+            <span>/api/custom-aircraft</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-history-alerts">
+            <span>/api/history/alerts</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#ep-history-stats">
+            <span>/api/history/stats</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
+      </ul>
+
       <div class="nav-label">System Diagnostics</div>
       <ul class="nav-menu">
         <li class="nav-item">
@@ -945,12 +967,16 @@
             <span class="spec-value">CORS Enabled (*)</span>
           </div>
           <div class="spec-item">
-            <span class="spec-label">State Cache TTL</span>
-            <span class="spec-value">15 Seconds</span>
+            <span class="spec-label">State Cache Policy</span>
+            <span class="spec-value">Dynamic WIB (10s Peak / 70s Standby)</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">Persistent Storage</span>
+            <span class="spec-value">SQLite WAL (skyguard.db)</span>
           </div>
           <div class="spec-item">
             <span class="spec-label">Database Index</span>
-            <span class="spec-value">494,976 Airframes</span>
+            <span class="spec-value">494,976 Airframes + 29,311 Airports</span>
           </div>
         </div>
       </section>
@@ -973,8 +999,8 @@
               </tr>
               <tr>
                 <td><code>Rate Control</code></td>
-                <td>15-second refresh cycle</td>
-                <td>In-memory caching prevents redundant external upstream requests while serving local clients instantly.</td>
+                <td>Dynamic 10s / 70s WIB Cycle</td>
+                <td>Centralized 1-door ingestor strictly caps daily external API calls under 4,000 requests/day while serving clients instantly from RAM.</td>
               </tr>
               <tr>
                 <td><code>Gzip Encoding</code></td>
@@ -1394,7 +1420,256 @@
         </div>
       </section>
 
-      <!-- ENDPOINT 6: /api/stats & /api/status -->
+      <!-- ENDPOINT 6: /api/fir/indonesia -->
+      <section class="doc-section" id="ep-fir">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/fir/indonesia <button class="btn-copy-ep" onclick="copyValue('/api/fir/indonesia')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Indonesian Flight Information Region (WIIF &amp; WAAF) GeoJSON Boundaries</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Delivers full sovereign Indonesian airspace boundary polygons (Jakarta WIIF &amp; Ujung Pandang WAAF) conforming to RFC 7946 GeoJSON format, used for sovereign airspace breach validation.
+              </p>
+              <div class="table-caption">Output Attributes</div>
+              <ul style="font-size:0.82rem; color:var(--text-muted); padding-left:18px; line-height:1.7;">
+                <li><code>type: "FeatureCollection"</code> — RFC 7946 GeoJSON standard</li>
+                <li><code>WIIF</code> — Jakarta Sector Airspace Polygon</li>
+                <li><code>WAAF</code> — Ujung Pandang (Makassar) Sector Airspace Polygon</li>
+              </ul>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeFir">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeFir')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeFir">curl -s "http://localhost:8080/api/fir/indonesia"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlFir" value="/api/fir/indonesia">
+                <button class="btn-run" onclick="runRequest('urlFir', 'outFir', 'metaFir')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outFir">// Click "Execute" to fetch FIR GeoJSON geometry</div>
+              <div class="live-output-footer" id="metaFir">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 7: /api/custom-aircraft -->
+      <section class="doc-section" id="ep-custom-aircraft">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-method chip-post" style="margin-left:4px;">POST</span>
+              <span class="ep-path">/api/custom-aircraft <button class="btn-copy-ep" onclick="copyValue('/api/custom-aircraft?icao=7500DA')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Watchlist priority tagging &amp; custom intelligence notes (SQLite)</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Allows operators to query and record persistent tactical watchlist tags, priority tiers, and intelligence mission notes for designated aircraft into the hybrid SQLite database.
+              </p>
+
+              <div class="table-caption">Parameters &amp; Payload</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="param-name">icao</span></td>
+                      <td>Query (GET)</td>
+                      <td class="param-desc">Optional transponder hex (e.g. <code>7500DA</code>) to query specific target notes.</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">icao24</span></td>
+                      <td>Body (POST)</td>
+                      <td class="param-desc">Required 6-char hex address of the target airframe.</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">priority</span></td>
+                      <td>Body (POST)</td>
+                      <td class="param-desc"><code>high</code>, <code>medium</code>, or <code>normal</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">tag</span></td>
+                      <td>Body (POST)</td>
+                      <td class="param-desc">Classification tag (e.g. <code>SURVEILLANCE</code>, <code>VIP</code>, <code>INTERCEPT_TARGET</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">notes</span></td>
+                      <td>Body (POST)</td>
+                      <td class="param-desc">Freeform operational or tactical notes.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeCustom">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeCustom')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeCustom">curl -s "http://localhost:8080/api/custom-aircraft"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlCustom" value="/api/custom-aircraft">
+                <button class="btn-run" onclick="runRequest('urlCustom', 'outCustom', 'metaCustom')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outCustom">// Click "Execute" to inspect custom aircraft watchlist</div>
+              <div class="live-output-footer" id="metaCustom">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 8: /api/history/alerts -->
+      <section class="doc-section" id="ep-history-alerts">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/history/alerts <button class="btn-copy-ep" onclick="copyValue('/api/history/alerts?limit=10')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Historical incident log of emergency squawks and FIR incursions (SQLite)</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Queries the persistent SQLite incident log for historical tactical events, transponder emergencies (Squawk 7700/7600/7500), and Indonesian FIR airspace entries. Preserved permanently across server restarts and VPS re-deploys.
+              </p>
+
+              <div class="table-caption">Parameters</div>
+              <div class="param-table-wrap">
+                <table class="spec-table">
+                  <thead>
+                    <tr><th>Parameter</th><th>In</th><th>Description</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="param-name">limit</span></td>
+                      <td>Query</td>
+                      <td class="param-desc">Maximum number of incidents to return (default: <code>50</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">severity</span></td>
+                      <td>Query</td>
+                      <td class="param-desc">Filter by alert level: <code>critical</code> or <code>warning</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><span class="param-name">icao</span></td>
+                      <td>Query</td>
+                      <td class="param-desc">Filter records for a specific airframe hex address.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeAlerts">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeAlerts')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeAlerts">curl -s "http://localhost:8080/api/history/alerts?limit=10"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlAlerts" value="/api/history/alerts?limit=10">
+                <button class="btn-run" onclick="runRequest('urlAlerts', 'outAlerts', 'metaAlerts')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outAlerts">// Click "Execute" to load persistent incident history</div>
+              <div class="live-output-footer" id="metaAlerts">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 9: /api/history/stats -->
+      <section class="doc-section" id="ep-history-stats">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/history/stats <button class="btn-copy-ep" onclick="copyValue('/api/history/stats')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Aggregated tactical incident &amp; FIR boundary metrics</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Returns aggregate counts of all historical events recorded in SQLite, including total logged alerts, critical squawk alerts, and Indonesian FIR entries.
+              </p>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeHistStats">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeHistStats')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeHistStats">curl -s "http://localhost:8080/api/history/stats"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlHistStats" value="/api/history/stats">
+                <button class="btn-run" onclick="runRequest('urlHistStats', 'outHistStats', 'metaHistStats')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outHistStats">// Click "Execute" to inspect database incident aggregates</div>
+              <div class="live-output-footer" id="metaHistStats">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 10: /api/stats -->
       <section class="doc-section" id="ep-stats">
         <div class="endpoint-card">
           <div class="endpoint-header">
@@ -1437,6 +1712,96 @@
 
               <div class="live-output-window" id="outStats">// Click "Execute" to inspect system metrics</div>
               <div class="live-output-footer" id="metaStats">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 11: /api/status -->
+      <section class="doc-section" id="ep-status">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/status <button class="btn-copy-ep" onclick="copyValue('/api/status')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Server health, dynamic WIB schedule, quota metrics &amp; database status</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Comprehensive healthcheck monitoring OpenSky OAuth2 token validity, active 1-door centralized ingestor mode, daily 4,000 quota utilization, current WIB time schedule, and SQLite database health.
+              </p>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeStatus">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeStatus')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeStatus">curl -s "http://localhost:8080/api/status"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlStatus" value="/api/status">
+                <button class="btn-run" onclick="runRequest('urlStatus', 'outStatus', 'metaStatus')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outStatus">// Click "Execute" to inspect system diagnostic metrics</div>
+              <div class="live-output-footer" id="metaStatus">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ENDPOINT 12: /api/refresh-all -->
+      <section class="doc-section" id="ep-refresh">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-post">POST</span>
+              <span class="ep-path">/api/refresh-all <button class="btn-copy-ep" onclick="copyValue('/api/refresh-all')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Out-of-cycle on-demand radar scan (10s cooldown protection)</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Forces an immediate radar telemetry scan. Protected by an internal 10-second cooldown so rapid button presses do not breach the daily 4,000 quota limit.
+              </p>
+            </div>
+
+            <div class="endpoint-code-col">
+              <div class="code-panel-top">
+                <div class="lang-switcher" data-target="codeRefresh">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="python">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codeRefresh')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codeRefresh">curl -X POST -s "http://localhost:8080/api/refresh-all"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlRefresh" value="/api/refresh-all">
+                <button class="btn-run" onclick="runRequest('urlRefresh', 'outRefresh', 'metaRefresh', 'POST')">Execute (POST)</button>
+              </div>
+
+              <div class="live-output-window" id="outRefresh">// Click "Execute" to trigger an on-demand scan</div>
+              <div class="live-output-footer" id="metaRefresh">
                 <span>Status: Idle</span>
                 <span>Latency: ---</span>
               </div>
@@ -1635,7 +2000,7 @@
     }
 
     // Live Request Executor
-    async function runRequest(inputId, outputId, metaId) {
+    async function runRequest(inputId, outputId, metaId, method = "GET", postBody = null) {
       const input = document.getElementById(inputId);
       const out = document.getElementById(outputId);
       const meta = document.getElementById(metaId);
@@ -1643,12 +2008,17 @@
       const path = input.value.trim();
       const url = path.startsWith("http") ? path : `${baseOrigin}${path}`;
 
-      out.textContent = `Connecting to ${url}...`;
+      out.textContent = `Connecting (${method}) to ${url}...`;
       meta.innerHTML = `<span>Status: Executing</span> <span>Latency: ---</span>`;
 
       try {
         const t0 = performance.now();
-        const res = await fetch(url);
+        const fetchOpts = { method };
+        if (method === "POST" && postBody) {
+          fetchOpts.headers = { "Content-Type": "application/json" };
+          fetchOpts.body = typeof postBody === "string" ? postBody : JSON.stringify(postBody);
+        }
+        const res = await fetch(url, fetchOpts);
         const t1 = performance.now();
         const latency = Math.round(t1 - t0);
 
@@ -1713,6 +2083,36 @@
           url: `${baseOrigin}/api/stats`,
           py: `import requests\n\nstats = requests.get("${baseOrigin}/api/stats").json()\nprint(f"Airborne: {stats.get('airborne')}, Military: {stats.get('total_military')}")`,
           js: `const res = await fetch('${baseOrigin}/api/stats');\nconst stats = await res.json();\nconsole.log(stats);`
+        },
+        codeFir: {
+          url: `${baseOrigin}/api/fir/indonesia`,
+          py: `import requests\n\nfir = requests.get("${baseOrigin}/api/fir/indonesia").json()\nprint("FIR Features:", len(fir.get('features', [])))`,
+          js: `const res = await fetch('${baseOrigin}/api/fir/indonesia');\nconst fir = await res.json();\nconsole.log(fir.features);`
+        },
+        codeCustom: {
+          url: `${baseOrigin}/api/custom-aircraft`,
+          py: `import requests\n\n# Query custom watchlist\nwatchlist = requests.get("${baseOrigin}/api/custom-aircraft").json()\n\n# Add/update aircraft note (POST)\n# requests.post("${baseOrigin}/api/custom-aircraft", json={"icao24": "7500DA", "priority": "high", "tag": "VIP", "notes": "Monitored"})`,
+          js: `const res = await fetch('${baseOrigin}/api/custom-aircraft');\nconst watchlist = await res.json();\nconsole.log(watchlist);`
+        },
+        codeAlerts: {
+          url: `${baseOrigin}/api/history/alerts?limit=10`,
+          py: `import requests\n\nres = requests.get("${baseOrigin}/api/history/alerts", params={"limit": 10, "severity": "critical"})\nalerts = res.json()['alerts']\nfor a in alerts:\n    print(f"[{a['datetime_wib']}] {a['callsign']}: {a['label']}")`,
+          js: `const res = await fetch('${baseOrigin}/api/history/alerts?limit=10');\nconst { alerts } = await res.json();\nconsole.log(alerts);`
+        },
+        codeHistStats: {
+          url: `${baseOrigin}/api/history/stats`,
+          py: `import requests\n\nstats = requests.get("${baseOrigin}/api/history/stats").json()['stats']\nprint("Total Logged Alerts in SQLite:", stats['total_logged_alerts'])`,
+          js: `const res = await fetch('${baseOrigin}/api/history/stats');\nconst { stats } = await res.json();\nconsole.log(stats);`
+        },
+        codeStatus: {
+          url: `${baseOrigin}/api/status`,
+          py: `import requests\n\nstatus = requests.get("${baseOrigin}/api/status").json()\nprint("Ingestor:", status.get('ingestor'))\nprint("SQLite:", status.get('sqlite'))`,
+          js: `const res = await fetch('${baseOrigin}/api/status');\nconst status = await res.json();\nconsole.log(status);`
+        },
+        codeRefresh: {
+          url: `${baseOrigin}/api/refresh-all`,
+          py: `import requests\n\nres = requests.post("${baseOrigin}/api/refresh-all")\nprint("Refresh result:", res.json()['status'])`,
+          js: `const res = await fetch('${baseOrigin}/api/refresh-all', { method: 'POST' });\nconst data = await res.json();\nconsole.log(data);`
         }
       };
 
