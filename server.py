@@ -16,11 +16,27 @@ import gzip
 import json
 import time
 import math
+import ssl
 import urllib.request
 import urllib.parse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 import threading
+
+# --- SSL Context for external API calls ---
+# TrueNAS / FreeBSD environments often lack a system CA bundle,
+# causing CERTIFICATE_VERIFY_FAILED on outbound HTTPS requests.
+# We create a permissive context only for our specific API calls;
+# the web server itself still runs plain HTTP on the LAN.
+_SSL_CTX = ssl.create_default_context()
+try:
+    import certifi
+    _SSL_CTX.load_verify_locations(certifi.where())
+    print("[SSL] Using certifi CA bundle.")
+except ImportError:
+    # certifi not installed — fall back to unverified context
+    _SSL_CTX = ssl._create_unverified_context()
+    print("[SSL] certifi not found. Using unverified SSL context (TrueNAS/FreeBSD fallback).")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
@@ -314,7 +330,7 @@ class OpenSkyAuth:
             )
 
             try:
-                with urllib.request.urlopen(req, timeout=20) as resp:
+                with urllib.request.urlopen(req, timeout=20, context=_SSL_CTX) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     self.access_token = data["access_token"]
                     expires_in = data.get("expires_in", 1800)
@@ -718,7 +734,7 @@ class MilitaryFlightService:
 
             try:
                 t0 = time.time()
-                with urllib.request.urlopen(req, timeout=35) as resp:
+                with urllib.request.urlopen(req, timeout=35, context=_SSL_CTX) as resp:
                     raw_bytes = resp.read()
                     encoding = resp.info().get("Content-Encoding", "").lower()
                     if encoding == "gzip":
@@ -885,7 +901,7 @@ class MilitaryFlightService:
         dest_display = "Tactical Sortie / In Flight"
 
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
                 flights_history = json.loads(resp.read().decode("utf-8"))
                 if flights_history:
                     # Pick latest flight
@@ -912,7 +928,9 @@ class MilitaryFlightService:
                 origin_display = f"Near [{nearest['icao']}] {nearest['name']} (~{nearest['distance_km']}km)"
 
         route_result = {
+            "status": "success",
             "icao24": icao.upper(),
+            "has_route": bool(origin_airport or dest_airport),
             "origin": origin_airport,
             "origin_display": origin_display,
             "destination": dest_airport,
@@ -967,7 +985,7 @@ class MilitaryFlightService:
             url = f"https://api.planespotters.net/pub/photos/hex/{icao_clean}"
             try:
                 req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=6) as resp:
+                with urllib.request.urlopen(req, timeout=6, context=_SSL_CTX) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     photos = data.get("photos", [])
                     if photos:
@@ -990,7 +1008,7 @@ class MilitaryFlightService:
             url = f"https://api.planespotters.net/pub/photos/reg/{urllib.parse.quote(reg_clean)}"
             try:
                 req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=6) as resp:
+                with urllib.request.urlopen(req, timeout=6, context=_SSL_CTX) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     photos = data.get("photos", [])
                     if photos:

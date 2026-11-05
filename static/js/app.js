@@ -55,13 +55,28 @@
   let filteredFlights = [];
   let markersMap = new Map(); // icao -> Leaflet Marker
   let selectedIcao = null;
+  let isRouteTrackActive = false;
+  let routeLineLayer = null; // L.layerGroup for drawn route line between airports
+  let isSidebarCollapsed = false;
   let isAudioEnabled = true;
   let countdownTimer = null;
+  let mapLayoutTimer = null;
   let secondsRemaining = 15;
   const pollIntervalSeconds = 15;
 
   // Flight display mode: 'all' | 'military' | 'commercial'
   let flightMode = 'military';
+
+  function refreshMapLayout() {
+    window.requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
+    // The sidebar width animates for 250 ms. Recalculate again once it has
+    // reached its final size; otherwise Leaflet can retain the old canvas
+    // width and leave an empty strip after minimizing.
+    window.clearTimeout(mapLayoutTimer);
+    mapLayoutTimer = window.setTimeout(() => {
+      map?.invalidateSize({ pan: false });
+    }, 280);
+  }
 
   // Active filters
   const filters = {
@@ -295,7 +310,7 @@
           emergencyBanner.style.display = "flex";
           emergencyBanner.style.background = "rgba(220, 38, 38, 0.25)";
           emergencyBanner.style.borderColor = "rgba(239, 68, 68, 0.7)";
-          if (emergencyText) emergencyText.textContent = `🚨 ${topAlert.callsign}: ${topAlert.label}`;
+          if (emergencyText) emergencyText.textContent = `${topAlert.callsign}: ${topAlert.label}`;
           if (emergencySub) emergencySub.textContent = criticalAlerts.length > 1 ? `+${criticalAlerts.length - 1} MORE` : "TRACK";
           emergencyBanner.onclick = () => {
             const target = allFlights.find(f => f.icao24 === topAlert.icao24);
@@ -309,7 +324,7 @@
           emergencyBanner.style.display = "flex";
           emergencyBanner.style.background = "rgba(217, 119, 6, 0.25)";
           emergencyBanner.style.borderColor = "rgba(245, 158, 11, 0.7)";
-          if (emergencyText) emergencyText.textContent = `⚡ ${topAlert.callsign}: ${topAlert.label}`;
+          if (emergencyText) emergencyText.textContent = `${topAlert.callsign}: ${topAlert.label}`;
           if (emergencySub) emergencySub.textContent = "TRACK";
           emergencyBanner.onclick = () => {
             const target = allFlights.find(f => f.icao24 === topAlert.icao24);
@@ -389,13 +404,13 @@
 
     const pillLabels = {
       // Military
-      fighter: '✈ Fighter', bomber: '⬟ Bomber', transport: '▣ Transport',
-      tanker: '⛽ Tanker', recon: '◉ Recon', trainer: '◈ Trainer',
-      drone: '◎ UAV', military_general: '⊕ Mil Other',
+      fighter: 'Fighter', bomber: 'Bomber', transport: 'Transport',
+      tanker: 'Tanker', recon: 'Recon', trainer: 'Trainer',
+      drone: 'UAV', military_general: 'Other military',
       // Commercial
-      heavy: '▲ Heavy', airline: '✈ Airline', cargo_commercial: '▣ Cargo',
-      charter: '◆ Charter', turboprop: '⊗ Turboprop', business_jet: '◇ Bizjet',
-      light_aircraft: '· Light GA', general_aviation: '⊙ Other GA',
+      heavy: 'Heavy', airline: 'Airline', cargo_commercial: 'Cargo',
+      charter: 'Charter', turboprop: 'Turboprop', business_jet: 'Business jet',
+      light_aircraft: 'Light GA', general_aviation: 'Other GA',
     };
 
     document.querySelectorAll('.cat-pill').forEach(pill => {
@@ -405,12 +420,12 @@
       } else if (cat === 'fir_indo') {
         pill.textContent = `In FIR (${firIndoCount})`;
       } else if (cat === 'detections') {
-        pill.textContent = `🚨 Alerts (${detCount})`;
+        pill.textContent = `Alerts (${detCount})`;
       } else if (cat === 'helicopter') {
         // helicopter exists in both mil + com pills
         const isMilPill = pill.classList.contains('mil-cat-pill');
         const count = isMilPill ? (milCats.helicopter || 0) : (liveComCats.helicopter || comCats.helicopter || 0);
-        const label = isMilPill ? '⊛ Helo' : '⊛ Helicopter';
+        const label = isMilPill ? 'Helicopter' : 'Helicopter';
         pill.textContent = `${label} (${count})`;
       } else {
         const label = pillLabels[cat] || (cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '));
@@ -493,7 +508,7 @@
     const currentIcaos = new Set();
 
     filteredFlights.forEach(flight => {
-      if (flight.lat === null || flight.lon === null) return;
+      if (!Number.isFinite(flight.lat) || !Number.isFinite(flight.lon)) return;
 
       currentIcaos.add(flight.icao24);
       const isSelected = flight.icao24 === selectedIcao;
@@ -555,7 +570,7 @@
       let miniBadgesHtml = "";
       if (flight.detections && flight.detections.length > 0) {
         miniBadgesHtml = `<div class="card-detections-row">` + 
-          flight.detections.slice(0, 3).map(d => `<span class="det-badge ${d.severity}">⚡ ${d.label}</span>`).join("") +
+          flight.detections.slice(0, 3).map(d => `<span class="det-badge ${d.severity}">${d.label}</span>`).join("") +
           (flight.detections.length > 3 ? `<span class="det-badge info">+${flight.detections.length - 3}</span>` : "") +
           `</div>`;
       }
@@ -621,8 +636,18 @@
     selectedIcao = flight.icao24;
     SoundFX.playTargetLock();
 
-    const hud = document.getElementById("targetHudSection");
-    hud.style.display = "block";
+    const detailPanel = document.getElementById("detailPanel");
+    detailPanel.classList.add("visible");
+    document.querySelector(".main-viewport").classList.add("detail-open");
+
+    // Avoid reducing the map to an unusable strip on compact desktops.
+    // The flight list remains available from its edge handle.
+    if (window.matchMedia("(max-width: 1280px)").matches) {
+      isSidebarCollapsed = true;
+      document.getElementById("sidebarHud").classList.add("collapsed");
+      document.getElementById("btnMinimizeSidebar").textContent = "⟨";
+    }
+    refreshMapLayout();
 
     document.getElementById("targetCallsign").textContent = flight.callsign;
     document.getElementById("targetIcao").textContent = `#${flight.icao24}`;
@@ -674,7 +699,7 @@
     document.getElementById("targetSquawk").textContent = flight.squawk || "NONE";
     document.getElementById("targetCountry").textContent = flight.country || "Unknown";
 
-    if (shouldFly && flight.lat !== null && flight.lon !== null) {
+    if (shouldFly && Number.isFinite(flight.lat) && Number.isFinite(flight.lon)) {
       map.flyTo([flight.lat, flight.lon], Math.max(map.getZoom(), 7), {
         duration: 1.0
       });
@@ -716,6 +741,9 @@
         return;
       }
       const data = await resp.json();
+      // A slower response for a previously selected aircraft must not replace
+      // the details currently on screen.
+      if (icao !== selectedIcao) return;
       if (data.has_photo && data.large) {
         photoImg.onload = () => {
           photoPlaceholder.style.display = "none";
@@ -746,6 +774,7 @@
       const resp = await fetch(`/api/flight-route/${icao}`);
       if (!resp.ok) return;
       const data = await resp.json();
+      if (icao !== selectedIcao) return;
 
       if (data.origin_display) {
         document.getElementById("targetOrigin").textContent = data.origin_display;
@@ -804,10 +833,17 @@
   // Deselect Target Aircraft
   function deselectTarget() {
     selectedIcao = null;
-    document.getElementById("targetHudSection").style.display = "none";
+    document.getElementById("detailPanel").classList.remove("visible");
+    document.querySelector(".main-viewport").classList.remove("detail-open");
+    // juga clear route track jika aktif
+    if (routeLineLayer) { routeLineLayer.clearLayers(); }
+    isRouteTrackActive = false;
+    const btnTrack = document.getElementById("btnTrackRoute");
+    if (btnTrack) btnTrack.classList.remove("active");
     trailLayer.clearLayers();
     renderMarkers();
     document.querySelectorAll(".flight-card").forEach(c => c.classList.remove("active"));
+    refreshMapLayout();
   }
 
   // Populate Telemetry Drawer Table
@@ -1002,7 +1038,7 @@
     document.getElementById("btnFocusTarget").addEventListener("click", () => {
       if (!selectedIcao) return;
       const f = allFlights.find(x => x.icao24 === selectedIcao);
-      if (f && f.lat && f.lon) {
+      if (f && Number.isFinite(f.lat) && Number.isFinite(f.lon)) {
         map.flyTo([f.lat, f.lon], 9, { duration: 1 });
       }
     });
@@ -1018,6 +1054,101 @@
         btn.textContent = "Copied!";
         setTimeout(() => { btn.textContent = prev; }, 1800);
       });
+    });
+
+    // Sidebar minimize/expand
+    document.getElementById("btnMinimizeSidebar").addEventListener("click", () => {
+      isSidebarCollapsed = !isSidebarCollapsed;
+      const sidebar = document.getElementById("sidebarHud");
+      const btn = document.getElementById("btnMinimizeSidebar");
+      sidebar.classList.toggle("collapsed", isSidebarCollapsed);
+      btn.textContent = isSidebarCollapsed ? "⟨" : "⟩";
+      refreshMapLayout();
+    });
+
+    // Track Route button
+    document.getElementById("btnTrackRoute").addEventListener("click", async () => {
+      const btn = document.getElementById("btnTrackRoute");
+      if (!selectedIcao) return;
+
+      if (isRouteTrackActive) {
+        // Turn off
+        isRouteTrackActive = false;
+        btn.classList.remove("active");
+        btn.textContent = "Track route";
+        if (routeLineLayer) routeLineLayer.clearLayers();
+        return;
+      }
+
+      // Turn on — fetch route and draw line on map between origin & destination coords
+      isRouteTrackActive = true;
+      btn.classList.add("active");
+      btn.textContent = "Stop route";
+
+      try {
+        const resp = await fetch(`/api/flight-route/${selectedIcao}`);
+        if (!resp.ok) throw new Error("No route data");
+        const data = await resp.json();
+
+        if (!routeLineLayer) {
+          routeLineLayer = L.layerGroup().addTo(map);
+        } else {
+          routeLineLayer.clearLayers();
+        }
+
+        const points = [];
+
+        // Draw origin airport marker
+        if (data.origin && Number.isFinite(data.origin.lat) && Number.isFinite(data.origin.lon)) {
+          const originLatLng = [data.origin.lat, data.origin.lon];
+          points.push(originLatLng);
+          L.circleMarker(originLatLng, {
+            radius: 7,
+            fillColor: "#22c55e",
+            fillOpacity: 0.9,
+            color: "#0f1319",
+            weight: 2
+          }).bindTooltip(`🛫 ${data.origin_display || 'Origin'}`, { permanent: false })
+            .addTo(routeLineLayer);
+        }
+
+        // Draw destination airport marker
+        if (data.destination && Number.isFinite(data.destination.lat) && Number.isFinite(data.destination.lon)) {
+          const destLatLng = [data.destination.lat, data.destination.lon];
+          points.push(destLatLng);
+          L.circleMarker(destLatLng, {
+            radius: 7,
+            fillColor: "#f97316",
+            fillOpacity: 0.9,
+            color: "#0f1319",
+            weight: 2
+          }).bindTooltip(`🛬 ${data.dest_display || 'Destination'}`, { permanent: false })
+            .addTo(routeLineLayer);
+        }
+
+        // Draw dashed line between origin & destination
+        if (points.length === 2) {
+          L.polyline(points, {
+            color: "#38bdf8",
+            weight: 2,
+            opacity: 0.75,
+            dashArray: "8, 6"
+          }).addTo(routeLineLayer);
+
+          // Fit map to show both airports
+          map.fitBounds(L.latLngBounds(points).pad(0.3));
+        } else {
+          btn.classList.remove("active");
+          btn.textContent = "Track route";
+          isRouteTrackActive = false;
+          alert("Route data tidak tersedia untuk pesawat ini.");
+        }
+      } catch (e) {
+        console.warn("Track route error:", e);
+        btn.classList.remove("active");
+        btn.textContent = "Track route";
+        isRouteTrackActive = false;
+      }
     });
 
     const drawer = document.getElementById("telemetryDrawer");
@@ -1085,6 +1216,14 @@
   document.addEventListener("DOMContentLoaded", () => {
     initMap();
     setupEvents();
+    window.addEventListener("resize", refreshMapLayout);
+    // On phones the map remains the primary workspace; the flight list is
+    // available from its edge handle instead of covering the entire screen.
+    if (window.matchMedia("(max-width: 900px)").matches) {
+      isSidebarCollapsed = true;
+      document.getElementById("sidebarHud").classList.add("collapsed");
+      document.getElementById("btnMinimizeSidebar").textContent = "⟨";
+    }
     fetchFlights();
   });
 })();
