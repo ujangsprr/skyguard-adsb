@@ -349,10 +349,12 @@
 
       secondsRemaining = pollIntervalSeconds;
 
-      // Update trajectory smoothly on periodic radar sweeps
+      // Update trajectory & HUD detail panel smoothly on periodic radar sweeps
       if (selectedIcao) {
-        const activeTarget = allFlights.find(f => f.icao24 === selectedIcao);
+        const activeTarget = (allFlightsAll || []).find(f => f.icao24 === selectedIcao)
+          || (allFlights || []).find(f => f.icao24 === selectedIcao);
         if (activeTarget) {
+          updateDetailPanel(activeTarget);
           updateTargetTrajectory(activeTarget, false);
         }
       }
@@ -651,35 +653,31 @@
     });
   }
 
-  // Select Target Aircraft & Display HUD Card
-  async function selectTarget(flight, shouldFly = true) {
-    selectedIcao = flight.icao24;
-    SoundFX.playTargetLock();
+  // Update Left Target HUD Panel with live flight telemetry
+  function updateDetailPanel(flight) {
+    if (!flight) return;
 
-    const detailPanel = document.getElementById("detailPanel");
-    detailPanel.classList.add("visible");
-    document.querySelector(".main-viewport").classList.add("detail-open");
+    const callsignEl = document.getElementById("targetCallsign");
+    if (callsignEl) callsignEl.textContent = flight.callsign || "---";
 
-    // Avoid reducing the map to an unusable strip on compact desktops.
-    // The flight list remains available from its edge handle.
-    if (window.matchMedia("(max-width: 1280px)").matches) {
-      isSidebarCollapsed = true;
-      document.getElementById("sidebarHud").classList.add("collapsed");
-      document.getElementById("btnMinimizeSidebar").textContent = "⟨";
-    }
-    refreshMapLayout();
+    const icaoEl = document.getElementById("targetIcao");
+    if (icaoEl) icaoEl.textContent = `#${flight.icao24}`;
 
-    document.getElementById("targetCallsign").textContent = flight.callsign;
-    document.getElementById("targetIcao").textContent = `#${flight.icao24}`;
-    document.getElementById("targetDesc").textContent = flight.desc || flight.type_code || "Military Aircraft";
-    document.getElementById("targetOperator").textContent = flight.operator || `${flight.country} Armed Forces`;
+    const descEl = document.getElementById("targetDesc");
+    if (descEl) descEl.textContent = flight.desc || flight.type_code || "Aircraft";
+
+    const opEl = document.getElementById("targetOperator");
+    if (opEl) opEl.textContent = flight.operator || `${flight.country} Operator`;
 
     const firBadge = document.getElementById("targetFirBadge");
-    if (flight.in_fir_indonesia) {
-      firBadge.style.display = "flex";
-      document.getElementById("targetFirName").textContent = (flight.fir_name || "FIR INDONESIA").toUpperCase();
-    } else {
-      firBadge.style.display = "none";
+    const firName = document.getElementById("targetFirName");
+    if (firBadge) {
+      if (flight.in_fir_indonesia) {
+        firBadge.style.display = "flex";
+        if (firName) firName.textContent = (flight.fir_name || "FIR INDONESIA").toUpperCase();
+      } else {
+        firBadge.style.display = "none";
+      }
     }
 
     // Render Active Detections & Flight Anomalies in Target HUD
@@ -702,22 +700,72 @@
       }
     }
 
-    document.getElementById("targetOrigin").textContent = flight.origin || "Resolving origin departure...";
-    document.getElementById("targetDest").textContent = flight.destination || "Resolving destination...";
+    const origEl = document.getElementById("targetOrigin");
+    if (origEl) {
+      if (currentRouteData && currentRouteData.origin_display) {
+        origEl.textContent = currentRouteData.origin_display;
+      } else if (flight.origin) {
+        origEl.textContent = flight.origin;
+      } else if (!origEl.textContent || origEl.textContent === "---" || origEl.textContent.includes("Loading")) {
+        origEl.textContent = "Resolving origin departure...";
+      }
+    }
 
-    document.getElementById("targetAlt").innerHTML = flight.on_ground 
-      ? `GROUND <span class="gauge-unit">SFC</span>` 
-      : `${(flight.alt_ft ?? 0).toLocaleString()} <span class="gauge-unit">FT</span>`;
+    const destEl = document.getElementById("targetDest");
+    if (destEl) {
+      if (currentRouteData && currentRouteData.dest_display) {
+        destEl.textContent = currentRouteData.dest_display;
+      } else if (flight.destination) {
+        destEl.textContent = flight.destination;
+      } else if (!destEl.textContent || destEl.textContent === "---" || destEl.textContent.includes("Loading")) {
+        destEl.textContent = "Resolving destination...";
+      }
+    }
 
-    document.getElementById("targetSpeed").innerHTML = `${flight.speed_kts ?? 0} <span class="gauge-unit">KTS</span>`;
-    document.getElementById("targetHeading").innerHTML = `${Math.round(flight.heading ?? 0)}° <span class="gauge-unit">TRUE</span>`;
+    const altEl = document.getElementById("targetAlt");
+    if (altEl) {
+      altEl.innerHTML = flight.on_ground 
+        ? `GROUND <span class="gauge-unit">SFC</span>` 
+        : `${(flight.alt_ft ?? 0).toLocaleString()} <span class="gauge-unit">FT</span>`;
+    }
+
+    const spdEl = document.getElementById("targetSpeed");
+    if (spdEl) spdEl.innerHTML = `${flight.speed_kts ?? 0} <span class="gauge-unit">KTS</span>`;
+
+    const hdgEl = document.getElementById("targetHeading");
+    if (hdgEl) hdgEl.innerHTML = `${Math.round(flight.heading ?? 0)}° <span class="gauge-unit">TRUE</span>`;
     
     const vr = flight.vert_rate_fpm ?? 0;
     const vrPrefix = vr > 0 ? "+" : "";
-    document.getElementById("targetVertRate").innerHTML = `${vrPrefix}${vr} <span class="gauge-unit">FPM</span>`;
+    const vrEl = document.getElementById("targetVertRate");
+    if (vrEl) vrEl.innerHTML = `${vrPrefix}${vr} <span class="gauge-unit">FPM</span>`;
     
-    document.getElementById("targetSquawk").textContent = flight.squawk || "NONE";
-    document.getElementById("targetCountry").textContent = flight.country || "Unknown";
+    const sqkEl = document.getElementById("targetSquawk");
+    if (sqkEl) sqkEl.textContent = flight.squawk || "NONE";
+
+    const ctyEl = document.getElementById("targetCountry");
+    if (ctyEl) ctyEl.textContent = flight.country || "Unknown";
+  }
+
+  // Select Target Aircraft & Display HUD Card
+  async function selectTarget(flight, shouldFly = true) {
+    selectedIcao = flight.icao24;
+    SoundFX.playTargetLock();
+
+    const detailPanel = document.getElementById("detailPanel");
+    detailPanel.classList.add("visible");
+    document.querySelector(".main-viewport").classList.add("detail-open");
+
+    // Avoid reducing the map to an unusable strip on compact desktops.
+    // The flight list remains available from its edge handle.
+    if (window.matchMedia("(max-width: 1280px)").matches) {
+      isSidebarCollapsed = true;
+      document.getElementById("sidebarHud").classList.add("collapsed");
+      document.getElementById("btnMinimizeSidebar").textContent = "⟨";
+    }
+    refreshMapLayout();
+
+    updateDetailPanel(flight);
 
     if (shouldFly && Number.isFinite(flight.lat) && Number.isFinite(flight.lon)) {
       map.flyTo([flight.lat, flight.lon], Math.max(map.getZoom(), 7), {
@@ -1203,7 +1251,7 @@
       const btn = document.getElementById("btnTrackRoute");
       if (!selectedIcao) return;
 
-      const flight = allFlights.find(f => f.icao24 === selectedIcao);
+      const flight = (allFlightsAll || []).find(f => f.icao24 === selectedIcao) || allFlights.find(f => f.icao24 === selectedIcao);
       if (!flight) return;
 
       isRouteTrackActive = !isRouteTrackActive;
