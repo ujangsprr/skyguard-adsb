@@ -21,6 +21,20 @@
 
   <!-- SkyGuard Styles -->
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- Color Scheme Meta & FOUC Prevention Script -->
+  <meta name="color-scheme" content="light dark">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('skyguard_theme');
+        var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        var meta = document.querySelector('meta[name="color-scheme"]');
+        if (meta) meta.content = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) { }
+    })();
+  </script>
 </head>
 
 <body>
@@ -93,6 +107,11 @@
 
         <button class="btn-header" id="btnOpenTable" title="Open Flight Data Matrix Table">
           Table
+        </button>
+
+        <button class="btn-header" id="btnThemeToggle" title="Toggle Light / Dark Mode" aria-label="Toggle theme">
+          <span id="themeToggleIcon">☀️</span>
+          <span id="themeToggleText">Light</span>
         </button>
 
         <a href="/docs.html" target="_blank" class="btn-header"
@@ -339,6 +358,7 @@
     <!-- Basemap Switcher -->
     <div class="map-basemap-ctrl" aria-label="Basemap Style">
       <button class="basemap-btn active" data-basemap="dark">Dark</button>
+      <button class="basemap-btn" data-basemap="light">Light</button>
       <button class="basemap-btn" data-basemap="satellite">Satellite</button>
       <button class="basemap-btn" data-basemap="osm">Street</button>
     </div>

@@ -28,6 +28,11 @@
       ref: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
       maxZoom: 16
     },
+    light: {
+      base: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+      ref: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+      maxZoom: 16
+    },
     satellite: {
       base: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       ref: "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
@@ -68,6 +73,52 @@
 
   // Flight display mode: 'all' | 'military' | 'commercial'
   let flightMode = 'military';
+
+  // ─────────────────────────────────────────────────────
+  // Theme (Dark / Light Mode)
+  // ─────────────────────────────────────────────────────
+  let currentTheme = (() => {
+    try { return localStorage.getItem('skyguard_theme') || 'dark'; } catch (e) { return 'dark'; }
+  })();
+
+  function setTheme(theme) {
+    currentTheme = theme;
+    // Set data-theme on <html> and update <meta name="color-scheme">
+    document.documentElement.setAttribute('data-theme', theme);
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.content = theme;
+    // Persist (remove if matches system to avoid locking)
+    try { localStorage.setItem('skyguard_theme', theme); } catch (e) {}
+
+    // Update toggle button
+    const icon = document.getElementById('themeToggleIcon');
+    const text = document.getElementById('themeToggleText');
+    if (theme === 'light') {
+      if (icon) icon.textContent = '🌙';
+      if (text) text.textContent = 'Dark';
+    } else {
+      if (icon) icon.textContent = '☀️';
+      if (text) text.textContent = 'Light';
+    }
+
+    // Auto-switch basemap: when switching to light theme, switch from dark to light map;
+    // when switching to dark theme, switch from light map to dark map.
+    const basemapBtns = document.querySelectorAll('.basemap-btn');
+    const activeBasemap = Array.from(basemapBtns).find(b => b.classList.contains('active'));
+    const activeBasemapType = activeBasemap ? activeBasemap.dataset.basemap : null;
+
+    if (theme === 'light' && activeBasemapType === 'dark') {
+      setBasemap('light');
+      basemapBtns.forEach(b => b.classList.remove('active'));
+      const lightBtn = document.querySelector('.basemap-btn[data-basemap="light"]');
+      if (lightBtn) lightBtn.classList.add('active');
+    } else if (theme === 'dark' && activeBasemapType === 'light') {
+      setBasemap('dark');
+      basemapBtns.forEach(b => b.classList.remove('active'));
+      const darkBtn = document.querySelector('.basemap-btn[data-basemap="dark"]');
+      if (darkBtn) darkBtn.classList.add('active');
+    }
+  }
 
   // ─────────────────────────────────────────────────────
   // Top Loading Progress Bar (YouTube-style)
@@ -252,7 +303,8 @@
       attributionControl: false
     });
 
-    setBasemap("dark");
+    // Initialize with theme-aware basemap
+    setBasemap(currentTheme === 'light' ? 'light' : 'dark');
 
     firLayer = L.layerGroup().addTo(map);
     trailLayer = L.layerGroup().addTo(map);
@@ -1215,6 +1267,29 @@
         setBasemap(btn.dataset.basemap);
       });
     });
+
+    // Theme Toggle Button
+    const btnThemeToggle = document.getElementById("btnThemeToggle");
+    if (btnThemeToggle) {
+      btnThemeToggle.addEventListener("click", () => {
+        setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    // Apply initial theme on page load (sync button state + basemap active indicator)
+    (() => {
+      const icon = document.getElementById('themeToggleIcon');
+      const text = document.getElementById('themeToggleText');
+      if (currentTheme === 'light') {
+        if (icon) icon.textContent = '🌙';
+        if (text) text.textContent = 'Dark';
+        // Set active basemap button to "light"
+        document.querySelectorAll(".basemap-btn").forEach(b => b.classList.remove("active"));
+        const lightBtn = document.querySelector(".basemap-btn[data-basemap=\"light\"]");
+        if (lightBtn) lightBtn.classList.add("active");
+      }
+      // Dark theme is default — the HTML already has data-basemap="dark" button active
+    })();
 
     document.getElementById("btnToggleFir").addEventListener("click", toggleFirLayer);
 
