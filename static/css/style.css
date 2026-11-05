@@ -1088,7 +1088,9 @@ svg:focus,
 }
 
 .radar-plane-svg {
-  transition: transform 0.2s linear;
+  transform-origin: center center;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 /* Callsign label badge — hidden by default, shown ONLY on hover or when selected */
