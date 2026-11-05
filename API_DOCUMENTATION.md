@@ -267,7 +267,7 @@ curl -s "http://localhost:8080/api/history/alerts?limit=10&severity=critical"
 ---
 
 ### 3.11 `GET /api/history/stats`
-Mengambil statistik agregat seluruh insiden dan pelanggaran FIR Indonesia yang tersimpan di SQLite.
+Mengambil statistik agregat kapasitas database SQLite, ukuran file, jumlah total log posisi pesawat tersimpan, jumlah alert, serta kebijakan retensi otomatis 7 hari (*Option A: Military + Indonesian FIR + Alerts*).
 
 #### Contoh Request:
 ```bash
@@ -276,7 +276,31 @@ curl -s "http://localhost:8080/api/history/stats"
 
 ---
 
-### 3.12 `GET /api/custom-aircraft` & `POST /api/custom-aircraft`
+### 3.12 `GET /api/history/positions`
+Mengambil rekaman riwayat posisi dan telemetri penerbangan prioritas (*Option A*) yang tersimpan permanen di database SQLite `skyguard.db`. Berguna untuk audit jejak penerbangan, penyelidikan insiden, atau pemantauan armada militer dan ruang udara FIR Indonesia saat web tidak diakses.
+
+#### Query Parameters:
+* `icao` (opsional) — Filter riwayat titik koordinat untuk pesawat tertentu (misal: `7500DA` atau `AE01CE`).
+* `limit` (opsional, default: 100, max: 1000) — Jumlah baris riwayat titik koordinat yang diambil.
+* `military` (opsional, `1` atau `0`) — Filter khusus armada militer.
+* `in_fir` (opsional, `1` atau `0`) — Filter khusus pesawat di dalam FIR Indonesia.
+* `start` & `end` (opsional) — Filter rentang waktu unix timestamp (detik).
+
+#### Contoh Request:
+```bash
+# Riwayat titik koordinat pesawat tertentu (misal: RCH842):
+curl -s "http://localhost:8080/api/history/positions?icao=AE01CE&limit=50"
+
+# 100 posisi penerbangan militer terkini yang terekam di database:
+curl -s "http://localhost:8080/api/history/positions?military=1&limit=100"
+
+# Posisi pesawat di dalam FIR Indonesia yang terekam di database:
+curl -s "http://localhost:8080/api/history/positions?in_fir=1&limit=50"
+```
+
+---
+
+### 3.13 `GET /api/custom-aircraft` & `POST /api/custom-aircraft`
 Mengelola daftar pantau khusus (*watchlist*) dan catatan intelijen target tertentu.
 
 #### Contoh Simpan Catatan (POST):

@@ -879,6 +879,12 @@
             <span class="method-chip chip-get">GET</span>
           </a>
         </li>
+        <li class="nav-item">
+          <a href="#ep-history-positions">
+            <span>/api/history/positions</span>
+            <span class="method-chip chip-get">GET</span>
+          </a>
+        </li>
       </ul>
 
       <div class="nav-label">System Diagnostics</div>
@@ -1669,6 +1675,88 @@
         </div>
       </section>
 
+      <!-- ENDPOINT: /api/history/positions (Option A Priority Flight Logs) -->
+      <section class="doc-section" id="ep-history-positions">
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <div class="endpoint-signature">
+              <span class="ep-method chip-get">GET</span>
+              <span class="ep-path">/api/history/positions <button class="btn-copy-ep" onclick="copyValue('/api/history/positions?limit=10')">Copy</button></span>
+            </div>
+            <div class="ep-summary-text">Priority flight position history (Military, Indonesian FIR &amp; Alerts in SQLite)</div>
+          </div>
+
+          <div class="endpoint-body">
+            <div class="endpoint-spec-col">
+              <p class="spec-prose">
+                Persistently records bread-crumb flight tracks for high-priority airframes (Military assets, any flight inside Indonesian FIR, and emergency/anomalous flights) 24/7 even when web clients are closed. Retains up to 7 days of history with automatic pruning.
+              </p>
+              <div class="table-caption">Query Parameters</div>
+              <table class="spec-table">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>icao</code></td>
+                    <td><span class="param-type">string</span></td>
+                    <td>Specific 24-bit ICAO hex code (e.g. <code>7500DA</code>, <code>AE01CE</code>) to retrieve full chronological flight track.</td>
+                  </tr>
+                  <tr>
+                    <td><code>limit</code></td>
+                    <td><span class="param-type">integer</span></td>
+                    <td>Maximum position records to retrieve (default: <code>100</code>, max: <code>1000</code>).</td>
+                  </tr>
+                  <tr>
+                    <td><code>military</code></td>
+                    <td><span class="param-type">integer</span></td>
+                    <td><code>1</code> for military flights only, <code>0</code> for civilian.</td>
+                  </tr>
+                  <tr>
+                    <td><code>in_fir</code></td>
+                    <td><span class="param-type">integer</span></td>
+                    <td><code>1</code> for flights logged inside Indonesian FIR.</td>
+                  </tr>
+                  <tr>
+                    <td><code>start</code> / <code>end</code></td>
+                    <td><span class="param-type">integer</span></td>
+                    <td>Filter coordinates within a specific unix epoch range.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="live-console-col">
+              <div class="console-tab-header">
+                <div class="lang-selector">
+                  <button class="lang-btn active" data-lang="curl">cURL</button>
+                  <button class="lang-btn" data-lang="py">Python</button>
+                  <button class="lang-btn" data-lang="js">JavaScript</button>
+                </div>
+                <button class="btn-copy-code" onclick="copySnippet('codePositions')">Copy</button>
+              </div>
+
+              <pre class="code-display" id="codePositions">curl -s "http://localhost:8080/api/history/positions?limit=10"</pre>
+
+              <div class="live-exec-bar">
+                <input type="text" class="exec-input" id="urlPositions" value="/api/history/positions?limit=10">
+                <button class="btn-run" onclick="runRequest('urlPositions', 'outPositions', 'metaPositions')">Execute</button>
+              </div>
+
+              <div class="live-output-window" id="outPositions">// Click "Execute" to inspect persistent SQLite flight coordinates</div>
+              <div class="live-output-footer" id="metaPositions">
+                <span>Status: Idle</span>
+                <span>Latency: ---</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ENDPOINT 10: /api/stats -->
       <section class="doc-section" id="ep-stats">
         <div class="endpoint-card">
@@ -2101,8 +2189,13 @@
         },
         codeHistStats: {
           url: `${baseOrigin}/api/history/stats`,
-          py: `import requests\n\nstats = requests.get("${baseOrigin}/api/history/stats").json()['stats']\nprint("Total Logged Alerts in SQLite:", stats['total_logged_alerts'])`,
+          py: `import requests\n\nstats = requests.get("${baseOrigin}/api/history/stats").json()['stats']\nprint("Database size (MB):", stats['db_size_mb'])\nprint("Total Logged Positions:", stats['total_position_logs'])`,
           js: `const res = await fetch('${baseOrigin}/api/history/stats');\nconst { stats } = await res.json();\nconsole.log(stats);`
+        },
+        codePositions: {
+          url: `${baseOrigin}/api/history/positions?limit=10`,
+          py: `import requests\n\n# Query priority recorded flight tracks (Option A: Military + Indonesian FIR + Alerts)\nres = requests.get("${baseOrigin}/api/history/positions", params={"limit": 10})\npositions = res.json()['positions']\nfor p in positions:\n    print(f"[{p['datetime_wib']}] {p['callsign']} ({p['icao24']}) @ {p['lat']}, {p['lon']} - Reason: {p['log_reason']}")`,
+          js: `const res = await fetch('${baseOrigin}/api/history/positions?limit=10');\nconst { positions } = await res.json();\nconsole.log(positions);`
         },
         codeStatus: {
           url: `${baseOrigin}/api/status`,

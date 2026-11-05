@@ -920,6 +920,9 @@ class MilitaryFlightService:
                     for a in all_alerts:
                         self.db.log_alert(a)
 
+                    # Option A: Persist high-priority flight positions (Military + Indonesian FIR + Alerts)
+                    self.db.log_flight_positions(all_flights)
+
                 # Clean up old trails
                 active_icaos = {f["icao24"].lower() for f in all_flights}
                 for old_icao in list(self.trails.keys()):
@@ -1320,7 +1323,8 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
                 "sqlite": {
                     "enabled": True,
                     "db_file": "data/skyguard.db",
-                    "stats": db_manager.get_alerts_stats()
+                    "mode": "Option A (Military + Indonesian FIR + Alerts)",
+                    "stats": db_manager.get_database_stats()
                 }
             })
             return
@@ -1334,8 +1338,27 @@ class MilitaryRadarHandler(SimpleHTTPRequestHandler):
             self._send_json({"status": "success", "count": len(alerts), "alerts": alerts})
             return
 
+        elif path == "/api/history/positions":
+            query_params = urllib.parse.parse_qs(parsed.query)
+            limit = int(query_params.get("limit", ["100"])[0])
+            icao = query_params.get("icao", [None])[0]
+            start_time = query_params.get("start", [None])[0]
+            end_time = query_params.get("end", [None])[0]
+            is_mil = query_params.get("military", [None])[0]
+            is_mil_val = bool(int(is_mil)) if is_mil in ("0", "1") else None
+            in_fir = query_params.get("in_fir", [None])[0]
+            in_fir_val = bool(int(in_fir)) if in_fir in ("0", "1") else None
+
+            if icao:
+                history = db_manager.get_flight_history(icao, limit=limit, start_time=start_time, end_time=end_time)
+            else:
+                history = db_manager.get_recent_flight_logs(limit=limit, is_military=is_mil_val, in_fir=in_fir_val)
+
+            self._send_json({"status": "success", "count": len(history), "positions": history})
+            return
+
         elif path == "/api/history/stats":
-            hstats = db_manager.get_alerts_stats()
+            hstats = db_manager.get_database_stats()
             self._send_json({"status": "success", "stats": hstats})
             return
 
