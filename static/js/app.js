@@ -69,6 +69,75 @@
   // Flight display mode: 'all' | 'military' | 'commercial'
   let flightMode = 'military';
 
+  // ─────────────────────────────────────────────────────
+  // Top Loading Progress Bar (YouTube-style)
+  // ─────────────────────────────────────────────────────
+  const TopLoader = (() => {
+    let _bar = null;
+    let _fill = null;
+    let _timer = null;
+    let _currentWidth = 0;
+    let _target = 0;
+
+    function _el() {
+      if (!_bar)  _bar  = document.getElementById('topProgressBar');
+      if (!_fill) _fill = document.getElementById('topProgressFill');
+    }
+
+    function _setWidth(w) {
+      _currentWidth = Math.min(w, 100);
+      if (_fill) _fill.style.width = _currentWidth + '%';
+    }
+
+    // Incrementally grow bar up to 90% while waiting
+    function _tick() {
+      if (_currentWidth < _target) {
+        const step = (_target - _currentWidth) * 0.12 + 0.4;
+        _setWidth(_currentWidth + step);
+      }
+      if (_currentWidth < _target) {
+        _timer = setTimeout(_tick, 80);
+      }
+    }
+
+    function start() {
+      _el();
+      clearTimeout(_timer);
+      _currentWidth = 0;
+      _target = 85;
+      if (_bar) {
+        _bar.classList.remove('error');
+        _bar.classList.add('loading');
+      }
+      _setWidth(2); // immediate small bump
+      _timer = setTimeout(_tick, 50);
+    }
+
+    function finish() {
+      _el();
+      clearTimeout(_timer);
+      _target = 100;
+      _setWidth(100);
+      setTimeout(() => {
+        if (_bar) _bar.classList.remove('loading');
+        _setWidth(0);
+      }, 400);
+    }
+
+    function error() {
+      _el();
+      clearTimeout(_timer);
+      _setWidth(100);
+      if (_bar) _bar.classList.add('error');
+      setTimeout(() => {
+        if (_bar) _bar.classList.remove('loading', 'error');
+        _setWidth(0);
+      }, 600);
+    }
+
+    return { start, finish, error };
+  })();
+
   function refreshMapLayout() {
     window.requestAnimationFrame(() => map?.invalidateSize({ pan: false }));
     // The sidebar width animates for 250 ms. Recalculate again once it has
@@ -264,6 +333,9 @@
       refreshBtn.classList.add("active");
     }
 
+    // Start top loading bar
+    TopLoader.start();
+
     try {
       // Always fetch all-flights endpoint to get both military+commercial
       const url = isManual ? "/api/refresh-all" : "/api/all-flights";
@@ -295,6 +367,9 @@
       updateCategoryCounts(stats, allFlights);
 
       applyFilters();
+
+      // Complete the top loading bar — data rendered successfully
+      TopLoader.finish();
 
       SoundFX.playRadarBeep();
 
@@ -362,6 +437,7 @@
     } catch (err) {
       console.error("Flight fetch error:", err);
       statusText.textContent = "RECONNECTING...";
+      TopLoader.error();
     } finally {
       if (refreshBtn) refreshBtn.classList.remove("active");
     }

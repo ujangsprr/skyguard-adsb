@@ -52,6 +52,58 @@ body {
   flex-direction: column;
 }
 
+/* ================= Top Loading Progress Bar (YouTube-style) ================= */
+#topProgressBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#topProgressBar.loading {
+  opacity: 1;
+}
+
+#topProgressFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #38bdf8 0%, #60a5fa 50%, #38bdf8 100%);
+  background-size: 200% 100%;
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 10px #38bdf888, 0 0 4px #38bdf8;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: progressShimmer 1.4s linear infinite;
+  position: relative;
+}
+
+#topProgressFill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2px;
+  height: 7px;
+  width: 80px;
+  background: radial-gradient(ellipse at right, #38bdf8cc 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(2px);
+}
+
+@keyframes progressShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Error state — red bar on fetch failure */
+#topProgressBar.error #topProgressFill {
+  background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #ef4444 100%);
+  box-shadow: 0 0 10px #ef444488, 0 0 4px #ef4444;
+}
+
 /* ================= Top Navigation Bar ================= */
 .top-header {
   height: var(--header-height);
