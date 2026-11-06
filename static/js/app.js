@@ -408,10 +408,19 @@
       updateFlightsByMode();
 
       const totalShown = allFlights.length;
-      if (isPollingActive) {
-        statusText.textContent = `LIVE (${totalShown})`;
+      const statusPill = document.getElementById("apiStatusPill");
+      const liveDot = document.getElementById("livePulseDot");
+      if (stats.quota && stats.quota.rate_limited) {
+        if (statusText) statusText.textContent = `CACHED (${totalShown})`;
+        if (statusPill) statusPill.title = `OpenSky daily quota reached (4,000 credits). Serving cached flights seamlessly. Retrying in ${stats.quota.retry_after_s || 180}s.`;
+        if (liveDot) liveDot.className = "live-pulse paused";
+      } else if (isPollingActive) {
+        if (statusText) statusText.textContent = `LIVE (${totalShown})`;
+        if (statusPill) statusPill.title = `OpenSky Network ADS-B Stream Active · Daily Allowance: 4,000 credits`;
+        if (liveDot) liveDot.className = "live-pulse";
       } else {
-        statusText.textContent = `PAUSED (${totalShown})`;
+        if (statusText) statusText.textContent = `PAUSED (${totalShown})`;
+        if (liveDot) liveDot.className = "live-pulse paused";
       }
 
       updateStatsBar(stats);
@@ -437,8 +446,10 @@
         const topAlert = criticalAlerts[0];
         if (emergencyBanner) {
           emergencyBanner.style.display = "flex";
-          emergencyBanner.style.background = "rgba(220, 38, 38, 0.25)";
-          emergencyBanner.style.borderColor = "rgba(239, 68, 68, 0.7)";
+          emergencyBanner.style.background = "";
+          emergencyBanner.style.borderColor = "";
+          emergencyBanner.classList.add("is-critical");
+          emergencyBanner.classList.remove("is-warning");
           if (emergencyText) emergencyText.textContent = `${topAlert.callsign}: ${topAlert.label}`;
           if (emergencySub) emergencySub.textContent = criticalAlerts.length > 1 ? `+${criticalAlerts.length - 1} MORE` : "TRACK";
           emergencyBanner.onclick = () => {
@@ -451,8 +462,10 @@
         const topAlert = stats.alerts[0];
         if (emergencyBanner) {
           emergencyBanner.style.display = "flex";
-          emergencyBanner.style.background = "rgba(217, 119, 6, 0.25)";
-          emergencyBanner.style.borderColor = "rgba(245, 158, 11, 0.7)";
+          emergencyBanner.style.background = "";
+          emergencyBanner.style.borderColor = "";
+          emergencyBanner.classList.add("is-warning");
+          emergencyBanner.classList.remove("is-critical");
           if (emergencyText) emergencyText.textContent = `${topAlert.callsign}: ${topAlert.label}`;
           if (emergencySub) emergencySub.textContent = "TRACK";
           emergencyBanner.onclick = () => {
@@ -713,7 +726,7 @@
       const modelDisplay = flight.desc || flight.type_code || (isCommercial ? "Commercial Aircraft" : "Tactical Airframe");
 
       const firBadgeHtml = flight.in_fir_indonesia 
-        ? `<span style="background:rgba(249,115,22,0.2); color:#fdba74; font-size:0.62rem; padding:1px 4px; border-radius:2px; margin-left:4px;">${flight.fir_name || 'FIR INDO'}</span>` 
+        ? `<span class="card-fir-badge">${flight.fir_name || 'FIR INDO'}</span>` 
         : "";
 
       // Mini detection badges
@@ -734,31 +747,21 @@
         tanker: 'TANKER', recon: 'ISR/RECON', trainer: 'TRAINER',
         drone: 'UAV/DRONE', military_general: 'MILITARY'
       };
-      const CAT_COLOR_MAP = {
-        heavy: '#38bdf8', airline: '#60a5fa', cargo_commercial: '#fb923c',
-        charter: '#a78bfa', turboprop: '#4ade80', business_jet: '#f0abfc',
-        light_aircraft: '#86efac', helicopter: '#fcd34d', general_aviation: '#6ee7b7',
-        fighter: '#f87171', bomber: '#c084fc', transport: '#a3e635',
-        tanker: '#fb923c', recon: '#67e8f9', trainer: '#fde68a',
-        drone: '#e879f9', military_general: '#94a3b8'
-      };
-      const typeBadgeColor = CAT_COLOR_MAP[flight.category] || (isCommercial ? '#60a5fa' : 'var(--accent-blue)');
       const typeLabel = CAT_LABEL_MAP[flight.category] || (flight.category || 'UNKNOWN').replace(/_/g, ' ').toUpperCase();
       const typeCodePart = flight.type_code ? ` · ${flight.type_code}` : '';
-
 
       card.innerHTML = `
         <div class="flight-card-top">
           <div class="card-callsign">
             <span>${flight.callsign}</span>
-            <span style="font-size: 0.65rem; color: ${isCommercial ? '#60a5fa' : 'var(--accent-cyan)'}; font-family: var(--font-mono);">#${flight.icao24}</span>
+            <span class="card-icao-badge">#${flight.icao24}</span>
             ${firBadgeHtml}
           </div>
           <div class="card-country-flag">${flight.country || "Unknown"}</div>
         </div>
         <div class="card-model-row">
           <span>${modelDisplay}</span>
-          <span style="text-transform: uppercase; font-size: 0.62rem; color: ${typeBadgeColor};">${typeLabel}${typeCodePart}</span>
+          <span class="card-type-badge cat-${(flight.category || 'general').replace(/_/g, '-')}">${typeLabel}${typeCodePart}</span>
         </div>
         ${miniBadgesHtml}
         <div class="card-route-row">

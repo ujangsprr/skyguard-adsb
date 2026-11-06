@@ -226,24 +226,20 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Right Toolbar: Strictly 1 line, no stacking */
+/* Clean Flex Header: Fluid layout with zero overlap collision */
+.flight-mode-selector {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0 12px;
+}
+
 .header-status-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
-}
-
-/* The mode selector is the visual centre of the operations header. */
-@media (min-width: 901px) {
-  .top-header { position: relative; }
-  .flight-mode-selector {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  .header-left-group { min-width: 280px; }
-  .header-status-group { margin-left: auto; }
+  margin-left: auto;
 }
 
 /* Polling Toggle Switch */
@@ -341,7 +337,7 @@ body {
 .refresh-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: nowrap;
 }
 
@@ -349,12 +345,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-dim);
   padding: 0 4px;
-  min-width: 34px;
+  min-width: 32px;
 }
 
 .countdown-num {
@@ -366,29 +362,29 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   color: var(--text-main);
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-family: var(--font-sans);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   transition: background 0.15s, border-color 0.15s;
   white-space: nowrap;
-  height: 30px;
+  height: 28px;
 }
 
 .btn-header:hover {
   background: var(--bg-card-hover);
   border-color: #4b5563;
-  color: #fff;
+  color: var(--text-main);
 }
 
 .btn-header.active {
-  background: #1e3a5f;
+  background: rgba(56, 189, 248, 0.15);
   border-color: var(--accent-cyan);
-  color: #fff;
+  color: var(--accent-cyan);
 }
 
 .btn-header.fir-btn-active {
@@ -454,15 +450,16 @@ body {
   font-family: var(--font-mono);
   font-size: 0.88rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-main);
 }
 
-.stat-val.cyan { color: var(--accent-cyan); }
-.stat-val.green { color: var(--accent-green); }
-.stat-val.amber { color: var(--accent-amber); }
-.stat-val.rose { color: var(--accent-rose); }
+.stat-val.cyan   { color: var(--accent-cyan); }
+.stat-val.green  { color: var(--accent-green); }
+.stat-val.amber  { color: var(--accent-amber); }
+.stat-val.rose   { color: var(--accent-rose); }
 .stat-val.purple { color: var(--accent-purple); }
 .stat-val.orange { color: var(--accent-orange); }
+.stat-val.blue   { color: var(--accent-blue); }
 
 .stat-divider {
   width: 1px;
@@ -526,7 +523,7 @@ body {
 .alert-subtext {
   font-size: 0.6rem;
   color: #fca5a5;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.25);
   padding: 1px 4px;
   border-radius: 3px;
   border: 1px solid rgba(239, 68, 68, 0.4);
@@ -1066,7 +1063,7 @@ svg:focus,
 }
 
 .flights-list-section::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: var(--border-subtle);
   border-radius: 2px;
 }
 
@@ -1115,6 +1112,36 @@ svg:focus,
 .card-country-flag {
   font-size: 0.7rem;
   color: var(--text-dim);
+}
+
+.card-icao-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+}
+
+.flight-card.is-commercial .card-icao-badge {
+  color: var(--accent-blue);
+}
+
+.card-fir-badge {
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  color: #fdba74;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+.card-type-badge {
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent-blue);
 }
 
 .card-model-row {
@@ -1500,7 +1527,7 @@ svg:focus,
 
 /* Target HUD Detections Box */
 .target-detections-box {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: 6px;
   padding: 8px 10px;
@@ -1524,7 +1551,7 @@ svg:focus,
   gap: 5px;
 }
 .hud-detection-item {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(15, 23, 42, 0.5);
   border-radius: 4px;
   padding: 5px 8px;
   border-left: 3px solid #ef4444;
@@ -1621,18 +1648,18 @@ svg:focus,
 .target-photo-card {
   margin-top: 10px;
   margin-bottom: 12px;
-  background: rgba(10, 15, 22, 0.95);
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .target-photo-wrapper {
   position: relative;
   width: 100%;
   height: 160px;
-  background: #090d14;
+  background: var(--bg-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1675,8 +1702,8 @@ svg:focus,
   justify-content: space-between;
   align-items: center;
   padding: 5px 10px;
-  background: rgba(15, 23, 42, 0.85);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
   font-size: 0.62rem;
   font-family: var(--font-mono);
 }
@@ -1733,7 +1760,7 @@ svg:focus,
   width: 4px;
 }
 .detail-panel-inner::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: var(--border-subtle);
   border-radius: 2px;
 }
 
@@ -1760,7 +1787,7 @@ svg:focus,
 }
 
 .sidebar-minimize-btn:hover {
-  color: #fff;
+  color: var(--text-main);
   background: var(--bg-card-hover);
 }
 
@@ -1792,13 +1819,13 @@ svg:focus,
 .btn-action.btn-track-route:hover {
   background: rgba(56, 189, 248, 0.22);
   border-color: var(--accent-cyan);
-  color: #fff;
+  color: var(--accent-cyan);
 }
 
 .btn-action.btn-track-route.active {
   background: rgba(56, 189, 248, 0.3);
   border-color: var(--accent-cyan);
-  color: #fff;
+  color: var(--accent-cyan);
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
 }
 
@@ -1809,7 +1836,11 @@ svg:focus,
   stroke-dasharray: 8, 6;
 }
 
-/* Adjust basemap control when detail panel is open */
+/* Adjust basemap & quick nav controls when detail panel is open */
+.main-viewport.detail-open .map-quick-nav {
+  left: 374px;
+}
+
 .main-viewport.detail-open .map-basemap-ctrl {
   right: 434px;
 }
@@ -1915,127 +1946,441 @@ svg:focus,
 
 /* ================= Light Theme Polish & Overrides ================= */
 [data-theme="light"] {
-  /* Controls and Overlays on Map */
-  .map-quick-nav,
-  .map-basemap-ctrl,
-  .altitude-legend {
-    background: rgba(255, 255, 255, 0.95);
-    border-color: var(--border-subtle);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* ── Header & Top Bar ─────────────────────────────────────────── */
+
+  /* Stats strip background */
+  .stats-strip {
+    background: #f8fafc;
+    border-bottom-color: var(--border-subtle);
   }
 
-  .nav-pill-btn,
-  .basemap-btn {
-    color: #475569;
-  }
-
-  .nav-pill-btn:hover,
-  .basemap-btn:hover {
-    background: #f1f5f9;
+  /* Stat value base color – was hardcoded #fff (invisible on white) */
+  .stat-val {
     color: #0f172a;
   }
 
-  .nav-pill-btn.active,
-  .basemap-btn.active {
-    background: #e2e8f0;
-    color: var(--accent-cyan);
-    font-weight: 700;
-  }
-
-  .altitude-legend-title {
+  /* Stat label */
+  .stat-label {
     color: #64748b;
   }
 
-  .alt-scale-row {
-    color: #334155;
+  /* Colored stat values remain readable on light bg */
+  .stat-val.cyan   { color: #0284c7; }
+  .stat-val.green  { color: #16a34a; }
+  .stat-val.amber  { color: #b45309; }
+  .stat-val.rose   { color: #dc2626; }
+  .stat-val.purple { color: #7c3aed; }
+  .stat-val.orange { color: #c2410c; }
+
+  /* Stat divider */
+  .stat-divider {
+    background: #cbd5e1;
   }
 
-  /* Callsign Badges on Aircraft Markers */
-  .marker-callsign-badge {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: #cbd5e1;
+  /* Emergency alert banner subtext (was black bg) */
+  .alert-subtext {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.3);
+    color: #991b1b;
+  }
+
+  /* Emergency banner text */
+  .emergency-alert-banner {
+    color: #991b1b;
+  }
+
+  /* Header button hover – was color: #fff */
+  .btn-header:hover {
+    background: var(--bg-card-hover);
+    border-color: #94a3b8;
     color: #0f172a;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
   }
 
-  /* Real Aircraft Photo Card */
-  .target-photo-card {
+  /* Header button active state (was dark navy) */
+  .btn-header.active {
+    background: rgba(2, 132, 199, 0.12);
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+  }
+
+  /* FIR button active */
+  .btn-header.fir-btn-active {
+    background: rgba(234, 88, 12, 0.1);
+    border-color: #ea580c;
+    color: #9a3412;
+  }
+
+  /* Polling toggle slider track (off state) */
+  .switch-slider {
+    background: #94a3b8;
+  }
+
+  /* Toggle slider knob */
+  .switch-slider::before {
     background: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: var(--border-subtle);
   }
 
-  .target-photo-wrapper {
-    background: #f1f5f9;
+  /* ── Map Overlay Controls ─────────────────────────────────────── */
+  .map-quick-nav,
+  .map-basemap-ctrl,
+  .altitude-legend {
+    background: rgba(255, 255, 255, 0.97);
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   }
 
-  .target-photo-footer {
-    background: #f8fafc;
-    border-top-color: var(--border-subtle);
+  .nav-pill-btn { color: #475569; }
+  .nav-pill-btn:hover { background: #e2e8f0; color: #0f172a; }
+  .nav-pill-btn.active { background: #e2e8f0; color: #0284c7; font-weight: 700; }
+  .nav-pill-btn.fir-nav { color: #c2410c; }
+  .nav-pill-btn.fir-nav:hover, .nav-pill-btn.fir-nav.active {
+    background: rgba(234, 88, 12, 0.12);
+    color: #9a3412;
   }
 
-  /* Left Detail Panel */
-  .detail-panel {
-    background: var(--bg-secondary);
-    border-right-color: var(--border-subtle);
+  .basemap-btn { color: #475569; }
+  .basemap-btn:hover { background: #e2e8f0; color: #0f172a; }
+  .basemap-btn.active { background: #dbeafe; color: #1d4ed8; font-weight: 700; }
+
+  .altitude-legend-title { color: #64748b; }
+  .alt-scale-row { color: #334155; }
+
+  /* Leaflet zoom control */
+  .leaflet-control-zoom a:hover {
+    color: #0f172a !important;
   }
 
+  /* ── Aircraft Marker Callsign Badges ─────────────────────────── */
+  .marker-callsign-badge {
+    background: rgba(248, 250, 252, 0.97);
+    border-color: #94a3b8;
+    color: #0f172a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  /* ── Detection / Alert Badges ────────────────────────────────── */
+  .det-badge.critical {
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #991b1b;
+  }
+  .det-badge.warning {
+    background: rgba(217, 119, 6, 0.12);
+    border-color: rgba(217, 119, 6, 0.4);
+    color: #92400e;
+  }
+  .det-badge.info {
+    background: rgba(2, 132, 199, 0.1);
+    border-color: rgba(2, 132, 199, 0.35);
+    color: #0369a1;
+  }
+
+  /* Alert pill in category filter */
+  .cat-pill.alert-filter-pill.active {
+    background: rgba(220, 38, 38, 0.12) !important;
+    border-color: #ef4444 !important;
+    color: #991b1b !important;
+    box-shadow: none;
+  }
+
+  /* ── HUD Detection Box ───────────────────────────────────────── */
+  .target-detections-box {
+    background: rgba(248, 250, 252, 0.95);
+    border-color: rgba(220, 38, 38, 0.3);
+    box-shadow: inset 0 0 12px rgba(220, 38, 38, 0.04);
+  }
+  .target-detections-header { color: #991b1b; }
+  .hud-detection-item {
+    background: rgba(241, 245, 249, 0.9);
+    border-left-color: #ef4444;
+  }
+  .hud-detection-item.warning { border-left-color: #f59e0b; }
+  .hud-detection-item.info    { border-left-color: #0284c7; }
+  .hud-det-label.critical { color: #991b1b; }
+  .hud-det-label.warning  { color: #92400e; }
+  .hud-det-label.info     { color: #0369a1; }
+
+  /* ── Mode Selector Buttons ───────────────────────────────────── */
+  .mode-btn {
+    color: #64748b;
+  }
+  .mode-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+  .mode-btn.active[data-mode="military"] {
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #b91c1c;
+  }
+  .mode-btn.active[data-mode="commercial"] {
+    background: rgba(37, 99, 235, 0.1);
+    border-color: rgba(37, 99, 235, 0.4);
+    color: #1d4ed8;
+  }
+  .mode-btn.active[data-mode="all"] {
+    background: rgba(5, 150, 105, 0.1);
+    border-color: rgba(5, 150, 105, 0.4);
+    color: #047857;
+  }
+
+  /* ── Sidebar & Flight Cards ──────────────────────────────────── */
+  .search-input::placeholder { color: #94a3b8; }
+
+  .flight-card:hover { border-color: #94a3b8; }
+  .flight-card.active {
+    background: #eff6ff;
+    border-color: #0284c7;
+  }
+
+  .card-callsign { color: #0f172a; }
+  .card-route-row span { color: #334155; }
+
+  .card-telemetry-row {
+    border-top-color: #e2e8f0;
+  }
+  .telemetry-item span { color: #1e293b; }
+
+  /* Flight card commercial variant */
+  .flight-card.is-commercial {
+    border-left-color: #2563eb;
+    background: rgba(37, 99, 235, 0.03);
+  }
+  .flight-card.is-commercial:hover {
+    background: rgba(37, 99, 235, 0.07);
+    border-color: rgba(37, 99, 235, 0.3);
+  }
+  .flight-card.is-commercial.active {
+    background: rgba(37, 99, 235, 0.1);
+    border-color: #2563eb;
+  }
+  .flight-card.is-commercial .card-callsign { color: #1d4ed8; }
+
+  /* Scrollbars */
   .detail-panel-inner::-webkit-scrollbar-thumb,
   .flights-list-section::-webkit-scrollbar-thumb,
   .drawer-table-wrap::-webkit-scrollbar-thumb {
     background: #cbd5e1;
   }
 
+  /* ── HUD Selected Flight Panel ───────────────────────────────── */
+  .target-hud-section { background: #f1f5f9; }
+
+  .target-operator-badge {
+    background: #e0f2fe;
+    border-color: #bae6fd;
+    color: #0369a1;
+  }
+
+  .gauge-val { color: #0f172a; }
+
+  .btn-action:hover {
+    background: var(--bg-card-hover);
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  .btn-action.btn-track-route {
+    background: rgba(2, 132, 199, 0.08);
+    border-color: rgba(2, 132, 199, 0.35);
+    color: #0369a1;
+  }
+  .btn-action.btn-track-route:hover,
+  .btn-action.btn-track-route.active {
+    background: rgba(2, 132, 199, 0.15);
+    color: #0284c7;
+    box-shadow: 0 0 8px rgba(2, 132, 199, 0.2);
+  }
+
+  /* ── Sidebar Collapse Button ─────────────────────────────────── */
   .sidebar-minimize-btn {
     background: #ffffff;
     border-color: #cbd5e1;
     color: #64748b;
   }
-
   .sidebar-minimize-btn:hover {
     background: #f1f5f9;
     color: #0f172a;
   }
 
-  /* Mode selector buttons in Light Mode */
-  .mode-btn.active[data-mode="military"] {
-    background: rgba(239, 68, 68, 0.14);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #b91c1c;
-  }
-
-  .mode-btn.active[data-mode="commercial"] {
-    background: rgba(37, 99, 235, 0.14);
-    border-color: rgba(37, 99, 235, 0.4);
-    color: #1d4ed8;
-  }
-
-  .mode-btn.active[data-mode="all"] {
-    background: rgba(16, 185, 129, 0.14);
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #047857;
-  }
-
-  /* Telemetry Drawer Table */
+  /* ── Telemetry Drawer ────────────────────────────────────────── */
+  .drawer-title { color: #0f172a; }
   .telemetry-table th {
     background: #f8fafc;
     color: #475569;
-    border-bottom-color: var(--border-subtle);
+    border-bottom-color: #e2e8f0;
+  }
+  .telemetry-table td {
+    border-bottom-color: #f1f5f9;
+    color: #0f172a;
+  }
+  .telemetry-table tr:hover td { background: #f1f5f9; }
+
+  /* ── Aircraft Photo Card ─────────────────────────────────────── */
+  .target-photo-card {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #e2e8f0;
+  }
+  .target-photo-wrapper { background: #f1f5f9; }
+  .target-photo-footer {
+    background: #f8fafc;
+    border-top-color: #e2e8f0;
   }
 
-  .telemetry-table td {
-    border-bottom: 1px solid #f1f5f9;
+  /* ── Misc. Text & Labels ─────────────────────────────────────── */
+  .route-endpoint-name   { color: #0f172a; }
+  .gauge-label           { color: #64748b; }
+  .drawer-title          { color: #0f172a; }
+
+  /* FIR chart label on map stays dark for contrast against light map */
+  .fir-chart-label {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border-color: #ea580c !important;
+    color: #9a3412 !important;
+  }
+
+  /* ── FIR & Operator Badges in Light Mode ─────────────────────── */
+  .target-fir-badge {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #c2410c;
+    font-weight: 700;
+  }
+
+  .card-fir-badge {
+    background: #ffedd5;
+    border-color: #fdba74;
+    color: #c2410c;
+    font-weight: 700;
+  }
+
+  .card-icao-badge {
+    color: #0284c7;
+    font-weight: 700;
+  }
+
+  .flight-card.is-commercial .card-icao-badge {
+    color: #2563eb;
+    font-weight: 700;
+  }
+
+  .card-type-badge {
+    color: #0284c7;
+    font-weight: 700;
+  }
+
+  .target-icao {
+    color: #0284c7;
+    font-weight: 700;
+  }
+
+  .target-model-desc {
+    color: #334155;
+    font-weight: 600;
+  }
+
+  /* ── Target HUD Gauges & Route in Light Mode ─────────────────── */
+  .gauge-card {
+    background: #ffffff;
+    border-color: #cbd5e1;
+  }
+
+  .gauge-label {
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .gauge-val {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .gauge-unit {
+    color: #64748b;
+  }
+
+  .target-route-card {
+    background: #ffffff;
+    border-color: #cbd5e1;
+  }
+
+  .route-endpoint-label {
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .route-endpoint-name {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .btn-action {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    font-weight: 600;
+  }
+
+  .btn-action:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
     color: #0f172a;
   }
 
-  .telemetry-table tr:hover td {
-    background: #f1f5f9;
+  /* ── Sidebar Filters & Controls in Light Mode ────────────────── */
+  .cat-pill {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #334155;
+    font-weight: 500;
   }
 
-  /* Header FIR button active */
-  .btn-header.fir-btn-active {
-    background: rgba(249, 115, 22, 0.12);
-    border-color: var(--accent-orange);
+  .cat-pill:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+
+  .cat-pill.active {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+    font-weight: 700;
+  }
+
+  .cat-pill.fir-filter-pill {
+    border-color: #fdba74;
     color: #c2410c;
+  }
+
+  .cat-pill.fir-filter-pill.active {
+    background: #ffedd5 !important;
+    border-color: #ea580c !important;
+    color: #9a3412 !important;
+    font-weight: 700;
+  }
+
+  .country-select {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+  }
+
+  .country-select option {
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .airborne-toggle {
+    color: #334155;
+    font-weight: 600;
+  }
+
+  .search-input {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
   }
 }

@@ -503,6 +503,7 @@ class MilitaryFlightService:
         self.photo_cache = {}  # icao24 -> aircraft photo dict
         self.daily_requests_count = 0
         self.quota_day = time.strftime("%Y-%m-%d", time.gmtime())
+        self.rate_limited_until = 0
         self.poller_running = False
         self.poller_thread = None
         self.load_military_db()
@@ -744,6 +745,11 @@ class MilitaryFlightService:
 
     def _check_and_increment_quota(self):
         """Track daily OpenSky API requests against 4,000 requests/day limit."""
+        now = time.time()
+        if now < self.rate_limited_until:
+            wait_s = int(self.rate_limited_until - now)
+            return False
+
         current_day = time.strftime("%Y-%m-%d", time.gmtime())
         if current_day != self.quota_day:
             self.quota_day = current_day
@@ -777,9 +783,21 @@ class MilitaryFlightService:
 
             try:
                 t0 = time.time()
+                opensky_rem = None
                 with urllib.request.urlopen(req, timeout=35, context=_SSL_CTX) as resp:
                     raw_bytes = resp.read()
                     encoding = resp.info().get("Content-Encoding", "").lower()
+
+                    # Capture exact remaining credits directly from OpenSky response header!
+                    rem_hdr = resp.info().get("X-Rate-Limit-Remaining")
+                    if rem_hdr is not None:
+                        try:
+                            opensky_rem = int(rem_hdr)
+                            # Synchronize local counter with OpenSky server truth
+                            self.daily_requests_count = max(self.daily_requests_count, max(0, DAILY_QUOTA_LIMIT - opensky_rem))
+                        except (ValueError, TypeError):
+                            pass
+
                     if encoding == "gzip":
                         raw_text = gzip.decompress(raw_bytes).decode("utf-8")
                     elif encoding == "deflate":
@@ -851,7 +869,9 @@ class MilitaryFlightService:
                 quota_info = {
                     "daily_limit": DAILY_QUOTA_LIMIT,
                     "used_today": self.daily_requests_count,
-                    "remaining": max(0, DAILY_QUOTA_LIMIT - self.daily_requests_count),
+                    "remaining": opensky_rem if opensky_rem is not None else max(0, DAILY_QUOTA_LIMIT - self.daily_requests_count),
+                    "opensky_remaining": opensky_rem,
+                    "rate_limited": False,
                     "poll_interval_s": interval_s,
                     "schedule_mode": mode_tag,
                     "wib_time": wib_str,
@@ -933,9 +953,36 @@ class MilitaryFlightService:
 
                 return self.cached_flights, self.cached_stats
 
+            except urllib.error.HTTPError as e:
+                is_429 = (e.code == 429)
+                retry_after = 180
+                try:
+                    retry_hdr = e.headers.get("X-Rate-Limit-Retry-After-Seconds") or e.headers.get("Retry-After")
+                    if retry_hdr:
+                        retry_after = max(30, int(retry_hdr))
+                except Exception:
+                    pass
+
+                if is_429:
+                    self.rate_limited_until = now + retry_after
+                    self.last_fetch_time = now + retry_after - CACHE_TTL_SECONDS
+                    if self.cached_stats and "quota" in self.cached_stats:
+                        self.cached_stats["quota"]["rate_limited"] = True
+                        self.cached_stats["quota"]["retry_after_s"] = retry_after
+                        self.cached_stats["quota"]["remaining"] = 0
+                    if self.cached_all_stats and "quota" in self.cached_all_stats:
+                        self.cached_all_stats["quota"]["rate_limited"] = True
+                        self.cached_all_stats["quota"]["retry_after_s"] = retry_after
+                        self.cached_all_stats["quota"]["remaining"] = 0
+                    print(f"[API WARN 429] OpenSky daily quota reached or rate limited. Backing off {retry_after}s. Serving cached data smoothly.")
+                else:
+                    self.last_fetch_time = now - CACHE_TTL_SECONDS + 20
+                    print(f"[API WARN] OpenSky HTTP {e.code} error: {e}. Serving cached data.")
+                return self.cached_flights, self.cached_stats
+
             except Exception as e:
                 # Set backoff so server doesn't freeze or hammer OpenSky on consecutive polls
-                self.last_fetch_time = now - CACHE_TTL_SECONDS + 15
+                self.last_fetch_time = now - CACHE_TTL_SECONDS + 20
                 print(f"[API WARN] OpenSky fetch timeout/error ({e}). Serving cached data.")
                 return self.cached_flights, self.cached_stats
 
